@@ -3822,8 +3822,9 @@ async function scan(){
       grid = await cachedGrid(bounds, step, state.forceScan);
       state.forceScan = false;
       state.scanFrom = grid.at; state.scanFresh = grid.fresh; state.scanTotal = grid.total;
-      // Yalnız kıyıdan en fazla 1 km açıktaki su: kıyı/olta balıkçılığı için anlamlı alan (açık deniz hem gereksiz hem sorgu harcıyor)
-      cells = grid.cells.filter(c => c.shore != null && c.shore <= SHORE_MAX);
+      // Açık denizde (Karadeniz, açık Marmara/Ege) yalnız kıyıdan en fazla 1 km; kapalı ve dar sularda (İzmit Körfezi,
+      // İstanbul Boğazı) tamamı — körfezin ortası boş kalmasın
+      cells = grid.cells.filter(c => ['I', 'B'].includes(seaZone(c.lat, c.lng)) || (c.shore != null && c.shore <= SHORE_MAX));
       // Hava görünen alanda az değişir: alan 3×2 parçaya bölünür, her parçadaki en açık hücre çapa olur (en fazla 6 sorgu)
       for (let i = 0; i < 2; i++) for (let j = 0; j < 3; j++) {
         const inPart = cells.filter(c => Math.floor(c.r / grid.rows * 2) === i && Math.floor(c.c / grid.cols * 3) === j);
