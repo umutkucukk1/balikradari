@@ -2665,15 +2665,16 @@ function weatherAdvice(e){
 const map = L.map('map', {zoomControl:false, maxBounds:REGION, maxBoundsViscosity:0.8, minZoom:7}).setView([40.9, 29.6], 8);
 L.control.zoom({position:'topright'}).addTo(map);
 const esri = s => `https://server.arcgisonline.com/ArcGIS/rest/services/${s}/MapServer/tile/{z}/{y}/{x}`;
-const topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {maxZoom:19, maxNativeZoom:17, attribution:'© OpenTopoMap, © OpenStreetMap'}).addTo(map);
-const street = L.tileLayer(esri('World_Street_Map'), {maxZoom:19, attribution:'Harita: Esri, HERE, Garmin, © OpenStreetMap'});
+// crossOrigin: karoların pikselleri okunabilsin (ısı haritası haritanın deniz piksellerine kırpılır — applyHeatMask)
+const topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {maxZoom:19, maxNativeZoom:17, crossOrigin:true, attribution:'© OpenTopoMap, © OpenStreetMap'}).addTo(map);
+const street = L.tileLayer(esri('World_Street_Map'), {maxZoom:19, crossOrigin:true, attribution:'Harita: Esri, HERE, Garmin, © OpenStreetMap'});
 // Esri okyanus katmanı zoom 10'dan sonra "veri yok" görseli veriyor: 10'daki görüntü büyütülerek gösterilir
 const ocean = L.layerGroup([
-  L.tileLayer(esri('Ocean/World_Ocean_Base'), {maxZoom:19, maxNativeZoom:10, attribution:'Esri, GEBCO, NOAA'}),
+  L.tileLayer(esri('Ocean/World_Ocean_Base'), {maxZoom:19, maxNativeZoom:10, crossOrigin:true, attribution:'Esri, GEBCO, NOAA'}),
   L.tileLayer(esri('Ocean/World_Ocean_Reference'), {maxZoom:19, maxNativeZoom:10}),
 ]);
 // tile.openstreetmap.org, dosyadan (file://) açılınca Referer olmadığı için "engellendi" görseli döndürüyor; OSM Fransa sunucusu çalışıyor
-const osm = L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {maxZoom:19, subdomains:'abc', attribution:'© OpenStreetMap France, © OpenStreetMap'});
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {maxZoom:19, subdomains:'abc', crossOrigin:true, attribution:'© OpenStreetMap France, © OpenStreetMap'});
 const seamark = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {maxZoom:18, attribution:'© OpenSeaMap'});
 L.control.layers({'Topografik':topo, 'Sokak haritası':street, 'Deniz derinliği':ocean, 'OpenStreetMap':osm},
   {'Deniz işaretleri':seamark}, {position:'topright'}).addTo(map);
@@ -3296,6 +3297,71 @@ async function rateSpots(){
 // ---------- Tara ısı haritası ----------
 // Görünen deniz ızgaraya bölünür; her hücre kendi derinliği, kıyıya uzaklığı ve en yakın hava/deniz verisiyle puanlanır
 const heatLayer = L.layerGroup().addTo(map), heatRenderer = L.canvas({padding:0.3});
+
+// Isı haritası, haritanın ekranda deniz olarak çizdiği piksellere kırpılır (CSS mask): derinlik/yükseklik verisi 30–115 m
+// çözünürlükte olduğundan kıyıda taşma/boşluk kalıyordu; maske kıyıyı ekran pikseline oturtur (en fazla ~yarım piksel).
+// Deniz pikseli: belirgin mavi (b > 150 ve b − r > 22) — topo, sokak, okyanus ve OSM katmanlarının su renkleri buna uyar.
+// Denizdeki yazı/çizgilerin açtığı küçük delikler 2 px kapama (genişlet → daralt) ile kapanır; kıyı çizgisi kaymaz.
+let maskTimer = null, maskWorks = true, lastMask = null;
+// Ekrandaki bir nokta (clientX/Y) ısı haritasının görünen (maskelenmemiş) kısmında mı? Maske yoksa her yer görünür sayılır.
+function maskVisible(cx, cy){
+  const cv = heatRenderer._container;
+  if (!maskWorks || !lastMask || !cv) return true;
+  const r = cv.getBoundingClientRect(), {a, W, H} = lastMask;
+  const x = Math.floor((cx - r.left) * W / r.width), y = Math.floor((cy - r.top) * H / r.height);
+  return x >= 0 && y >= 0 && x < W && y < H && a[y * W + x] === 1;
+}
+const scheduleMask = () => { clearTimeout(maskTimer); maskTimer = setTimeout(applyHeatMask, 120); };
+function activeBase(){
+  for (const l of [topo, street, osm]) if (map.hasLayer(l)) return l;
+  return map.hasLayer(ocean) ? ocean.getLayers()[0] : null;
+}
+// Genişlet (grow) / daralt: yatay sonra dikey, kayan pencere toplamıyla (piksel başına sabit iş)
+function morph(a, W, H, rad, grow){
+  const b = new Uint8Array(a.length);
+  const pass = (src, dst, n, len, stride, step) => {
+    for (let i = 0; i < n; i++) {
+      const o = i * stride;
+      let s = 0;
+      for (let k = 0; k <= rad && k < len; k++) s += src[o + k * step];
+      for (let j = 0; j < len; j++) {
+        const lo = Math.max(0, j - rad), hi = Math.min(len - 1, j + rad);
+        dst[o + j * step] = grow ? (s > 0 ? 1 : 0) : (s === hi - lo + 1 ? 1 : 0);
+        if (j + rad + 1 < len) s += src[o + (j + rad + 1) * step];
+        if (j - rad >= 0) s -= src[o + (j - rad) * step];
+      }
+    }
+  };
+  pass(a, b, H, W, W, 1);   // satırlar
+  pass(b, a, W, H, 1, W);   // sütunlar
+}
+function applyHeatMask(){
+  const cv = heatRenderer._container, base = activeBase();
+  if (!cv || !state.scan.length || !base || !base._tiles) return;
+  const cr = cv.getBoundingClientRect(), W = Math.round(cr.width), H = Math.round(cr.height);
+  if (!W || !H) return;
+  const m = document.createElement('canvas'); m.width = W; m.height = H;
+  const g = m.getContext('2d', {willReadFrequently:true});
+  for (const t of Object.values(base._tiles)) {
+    const im = t.el; if (!t.loaded || !im.complete || !im.naturalWidth) continue;
+    const r = im.getBoundingClientRect();
+    g.drawImage(im, r.left - cr.left, r.top - cr.top, r.width, r.height);
+  }
+  let d;
+  // Karo okunamıyorsa (CORS) maske kapatılır ve kıyı hücreleri yine şerit şerit (kısmi) çizilir
+  try { d = g.getImageData(0, 0, W, H); } catch { if (maskWorks) { maskWorks = false; drawScan(); } return; }
+  const a = new Uint8Array(W * H), px = d.data;
+  for (let i = 0, p = 0; i < a.length; i++, p += 4) a[i] = px[p + 3] > 0 && px[p + 2] > 150 && px[p + 2] - px[p] > 22 ? 1 : 0;
+  morph(a, W, H, 2, true); morph(a, W, H, 2, false);
+  lastMask = {a, W, H};   // dokunmatikte "parmak boyalı denizde mi" kontrolü için
+  for (let i = 0, p = 0; i < a.length; i++, p += 4) { px[p] = px[p + 1] = px[p + 2] = 0; px[p + 3] = a[i] ? 255 : 0; }
+  g.putImageData(d, 0, 0);
+  const url = `url(${m.toDataURL()})`;
+  Object.assign(cv.style, {maskImage:url, webkitMaskImage:url, maskSize:'100% 100%', webkitMaskSize:'100% 100%', maskRepeat:'no-repeat', webkitMaskRepeat:'no-repeat'});
+}
+heatRenderer.on('update', scheduleMask);
+[topo, street, osm, ocean.getLayers()[0]].forEach(l => l.on('load', scheduleMask));
+map.on('baselayerchange', scheduleMask);
 const shoreTxt = m => m == null ? '' : m <= 150 ? 'kıyıdan' : '🚤 ' + (m < 1000 ? Math.round(m / 50) * 50 + ' m' : (m / 1000).toFixed(1).replace('.', ',') + ' km');
 // Isı haritası rengi: puan arttıkça kırmızı → turuncu → sarı → açık yeşil → yeşil arasında kesintisiz geçiş.
 // Doygun tonlar: soluk sarı mavi denizin üstünde haritanın bej kara rengine benzeyip "boş" gibi görünüyordu.
@@ -3338,7 +3404,9 @@ function drawScan(){
   scored.forEach(x => {
     const {S, s, sm} = x, p = S.p, [dLat, dLng] = p.cell || [0.004, 0.005];
     // Kıyı hücresi: sadece deniz olan şerit parçaları (karaya taşmasın)
-    const boxes = p.boxes || [[[p.lat - dLat / 2, p.lng - dLng / 2], [p.lat + dLat / 2, p.lng + dLng / 2]]];
+    // Maske çalışıyorsa kıyı hücresi tam boyanır, maske onu kıyı çizgisine kırpar (boşluk kalmaz);
+    // çalışmıyorsa yalnız derinlik verisindeki deniz şeritleri boyanır (taşmasın)
+    const boxes = (!maskWorks && p.boxes) || [[[p.lat - dLat / 2, p.lng - dLng / 2], [p.lat + dLat / 2, p.lng + dLng / 2]]];
     boxes.forEach(bx => {
       const rc = L.rectangle(bx, {renderer:heatRenderer, stroke:false, fillColor: s == null ? '#7a8590' : heatColor(sm), fillOpacity: s == null ? 0.18 : 0.75});
       // Dokunmatikte üzerine gelme yok: bilgi tek parmakla gezinerek (scrubAt) gösterilir, detay bilgi kutusuna dokununca açılır
@@ -3346,8 +3414,9 @@ function drawScan(){
       rc.addTo(heatLayer);
     });
   });
-  // Dokunmatikte ısı haritası açıkken tek parmak = değerleri gez, iki parmak = kaydır/yakınlaştır
-  if (TOUCH) { if (state.scan.length) map.dragging.disable(); else { map.dragging.enable(); scrubTip.hidden = true; } }
+  // Dokunmatikte kaydırma her dokunuşta ayrı karar verilir (ısı haritası üstünde mi?) — bkz. TOUCH dinleyicileri
+  if (TOUCH && !state.scan.length) { map.dragging.enable(); scrubTip.hidden = true; }
+  scheduleMask();
   // En iyi hücrelere ilk 3 balık baloncuğu: her tarama bölgesi için ayrı ayrı en iyi 5, bölge büyükse
   // (deniz alanının köşegeni 5 km+, ör. Tütünçiftlik–Gölcük ~6 km) en iyi 10. Baloncuklar birbirinin üstüne binmesin:
   // baloncuğun kendi boyutuna göre (~120×80 px) çakışan aday atlanır, sıradaki en iyi nokta denenir.
@@ -3393,7 +3462,7 @@ function cellAt(ll){
 }
 function scrubAt(t){
   const r = map.getContainer().getBoundingClientRect(), pt = L.point(t.clientX - r.left, t.clientY - r.top);
-  const x = cellAt(map.containerPointToLatLng(pt));
+  const x = maskVisible(t.clientX, t.clientY) && cellAt(map.containerPointToLatLng(pt));   // parmak karaya geçince kutu kapanır
   if (!x) { scrubTip.hidden = true; return; }
   scrubTip.innerHTML = heatTip({...x, s: tScore(x.H)}) + '<div class="go">Detay için dokun ›</div>';
   scrubTip._p = x.S.p; scrubTip.hidden = false;
@@ -3401,18 +3470,27 @@ function scrubAt(t){
   scrubTip.style.left = clamp(pt.x - w / 2, 6, r.width - w - 6) + 'px';
   scrubTip.style.top = (pt.y - h - 34 < 60 ? pt.y + 34 : pt.y - h - 34) + 'px';   // parmağın üstünde (yer yoksa altında)
 }
+// Tek parmak ısı haritasının ÜSTÜNDE başlarsa değerler gezilir (harita kaymaz); dışında başlarsa harita normal kayar.
+// İki parmak her zaman kaydırır/yakınlaştırır. Karar Leaflet'ten önce verilsin diye dokunuş başlangıcı yakalama evresinde dinlenir.
 if (TOUCH) {
   const mc = map.getContainer();
-  const onTouch = ev => {
-    if (!state.scan.length || ev.target.closest('.leaflet-control, .scrubtip, .leaflet-marker-icon')) return;
-    if (ev.touches.length !== 1) { scrubTip.hidden = true; return; }   // iki parmak: Leaflet kaydırır/yakınlaştırır
-    // Tek parmakla gezinirken tarayıcı metin seçmesin / sayfayı kaydırmasın
-    if (ev.type === 'touchmove' && ev.cancelable) ev.preventDefault();
+  let scrubbing = false;
+  const llOf = t => { const r = mc.getBoundingClientRect(); return map.containerPointToLatLng(L.point(t.clientX - r.left, t.clientY - r.top)); };
+  mc.addEventListener('touchstart', ev => {
+    if (ev.target.closest('.leaflet-control, .scrubtip, .leaflet-marker-icon')) return;
+    const t0 = ev.touches[0];
+    scrubbing = ev.touches.length === 1 && state.scan.length > 0 && !!cellAt(llOf(t0)) && maskVisible(t0.clientX, t0.clientY);
+    if (scrubbing) { map.dragging.disable(); scrubAt(ev.touches[0]); }
+    else { if (!map.dragging.enabled()) map.dragging.enable(); scrubTip.hidden = true; }
+  }, {capture:true, passive:true});
+  mc.addEventListener('touchmove', ev => {
+    if (!scrubbing) return;
+    if (ev.touches.length !== 1) { scrubbing = false; scrubTip.hidden = true; map.dragging.enable(); return; }
+    if (ev.cancelable) ev.preventDefault();   // tarayıcı metin seçmesin / sayfayı kaydırmasın
     window.getSelection && window.getSelection().removeAllRanges();
     scrubAt(ev.touches[0]);
-  };
-  mc.addEventListener('touchstart', onTouch, {passive:true});
-  mc.addEventListener('touchmove', onTouch, {passive:false});
+  }, {passive:false});
+  mc.addEventListener('touchend', ev => { if (!ev.touches.length && scrubbing) { scrubbing = false; map.dragging.enable(); } }, {passive:true});
 }
 // Haritanın sağ altında Tara düğmesi (mobil + masaüstü): filtreden il/ilçe/balık seçip Tamam'a basınca,
 // taranacak alan görünürken buradan taranır
@@ -3643,8 +3721,10 @@ async function heatGrid(vb, step, lat){
     try { el = await elevations(probes); } catch {}
     if (!el) break;
     todo.forEach((p, k) => {
-      // Deniz (0 m) ya da denize bitişik alçak sahil şeridi (≤3 m: iskele, liman dolgusu, sahil yolu) — balık tutulan kıyı boş kalmasın
-      const seaQ = Q.filter((q, i) => el[k * 4 + i] != null && el[k * 4 + i] <= 3);
+      // Deniz (0 m); yakın zoomda (14+, çeyrek ≤ ~250 m) denize bitişik alçak sahil şeridi de (≤3 m: iskele, liman dolgusu).
+      // Uzak zoomda çeyrek kilometrelerce olduğundan alçak kıyı ovaları/dere ağızları karaya taşıyordu (Karadeniz kıyısı).
+      const lowMax = map.getZoom() >= 14 ? 3 : 0;
+      const seaQ = Q.filter((q, i) => el[k * 4 + i] != null && el[k * 4 + i] <= lowMax);
       if (!seaQ.length) return;
       const qb = seaQ.map(q => quadBox(p.r, p.c, q));
       if (!p.edge) {
@@ -3678,11 +3758,11 @@ async function heatGrid(vb, step, lat){
 
 // Kayıtlı hücrelerle ızgara: derinlik/kıyı şekli değişmediği için hücreler 3 saat saklanır. Ekrandaki hücrelerden kayıtlı
 // olanlar hemen kullanılır, yalnız eksik olanlar (kaydırınca açılan şerit, yeni bölge) taranır → daha hızlı, daha az sorgu.
-const GRID_TTL = 3 * 3600000, SCAN_SHOW = 10 * 60000;   // derinlik kaydı 3 sa; taranan bölge ekranda 10 dk
+const GRID_TTL = 3 * 3600000, SCAN_SHOW = 10 * 60000, SHORE_MAX = 1000;   // ısı haritası: kıyıdan en fazla 1 km   // derinlik kaydı 3 sa; taranan bölge ekranda 10 dk
 async function cachedGrid(vb, step, force){
   const lat = gridLattice(vb), {dLat, dLng} = lat, box = latticeBox(vb, lat);
   const gr0 = Math.round(box.S0 / dLat), gc0 = Math.round(box.W0 / dLng), gk = (r, c) => (gr0 + r) + ',' + (gc0 + c);
-  const key = 'grid:' + lat.key;
+  const key = 'grid2:' + lat.key;   // grid2: kıyı dolgusu kuralı değişti, eski (karaya taşan) kayıtlar kullanılmasın
   let rec = await idb.get(key);
   if (!rec || Date.now() - rec.at > GRID_TTL) rec = {at:Date.now(), cells:{}};
   const missing = [];
@@ -3742,7 +3822,8 @@ async function scan(){
       grid = await cachedGrid(bounds, step, state.forceScan);
       state.forceScan = false;
       state.scanFrom = grid.at; state.scanFresh = grid.fresh; state.scanTotal = grid.total;
-      cells = grid.cells;
+      // Yalnız kıyıdan en fazla 1 km açıktaki su: kıyı/olta balıkçılığı için anlamlı alan (açık deniz hem gereksiz hem sorgu harcıyor)
+      cells = grid.cells.filter(c => c.shore != null && c.shore <= SHORE_MAX);
       // Hava görünen alanda az değişir: alan 3×2 parçaya bölünür, her parçadaki en açık hücre çapa olur (en fazla 6 sorgu)
       for (let i = 0; i < 2; i++) for (let j = 0; j < 3; j++) {
         const inPart = cells.filter(c => Math.floor(c.r / grid.rows * 2) === i && Math.floor(c.c / grid.cols * 3) === j);
@@ -4039,7 +4120,8 @@ const barsOpen = () => $('filters').classList.contains('open') || $('menu').clas
 map.on('click', ev => {
   if (barsOpen()) { closeBars(); return; }
   // Dokunmatikte ısı haritası üzerine dokunmak bilgi kutusunu gösterir (detay, kutuya dokununca açılır)
-  if (TOUCH && state.scan.length && cellAt(ev.latlng)) return;
+  const oe = ev.originalEvent;
+  if (TOUCH && state.scan.length && cellAt(ev.latlng) && (!oe || maskVisible(oe.clientX, oe.clientY))) return;
   clickPoint(ev.latlng);
 });
 // Balık adına/fotoğrafına dokununca rehber penceresi (kart içindeki tıklamadan önce yakalanır)
