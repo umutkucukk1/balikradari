@@ -3422,7 +3422,10 @@ function drawScan(){
   // baloncuğun kendi boyutuna göre (~120×80 px) çakışan aday atlanır, sıradaki en iyi nokta denenir.
   const chosen = [], groups = new Map(), BW = 124, BH = 84;
   const fits = cp => chosen.every(y => Math.abs(cp.x - y.cp.x) > BW || Math.abs(cp.y - y.cp.y) > BH);
+  // Puanlı bilinen meraların baloncukları da yer kaplar: tarama baloncuğu onların üstüne binmesin
+  const taken = SPOTS.filter(s => spotVisible(s) && state.ratings[s.n]).map(s => ({cp: map.latLngToContainerPoint([s.lat, s.lng])}));
   scored.filter(x => x.s != null && x.H.list.length).forEach(x => { const k = x.at || 0; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(x); });
+  chosen.push(...taken);
   for (const list of groups.values()) {
     const b = L.latLngBounds(list.map(x => [x.S.p.lat, x.S.p.lng]));
     const want = map.distance(b.getSouthWest(), b.getNorthEast()) >= 5000 ? 10 : 5;
@@ -3433,6 +3436,7 @@ function drawScan(){
       if (n >= want) break;
     }
   }
+  chosen.splice(0, taken.length);
   chosen.forEach(({S, H}) => L.marker([S.p.lat, S.p.lng], {icon: L.divIcon({className:'', iconSize:null,
     html: pinHtml(H, `<div class="muted" style="text-align:center">${Math.round(S.p.d)} m${S.p.shore != null ? ' · ' + shoreTxt(S.p.shore) : ''}</div>`)})})
     .addTo(scanLayer).on('click', () => openSpot(S.p)));
