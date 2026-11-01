@@ -2255,14 +2255,22 @@ const D_SEED = {
   'Kilyos sahili': [6.6, 6.4], 'Yeşilköy–Florya sahili': [4.6, 8.8], 'Avcılar–Ambarlı sahili': [3.1, 5.4], 'Silivri sahili': [1.5, null], 'Tekirdağ limanı sahili': [5.8, null], 'Kumbağ': [2.1, 5.6], 'Kıyıköy (Pabuçdere/Kazandere ağzı)': [2.7, null], 'Erikli (Saros)': [11.3, 12.1], 'Bandırma limanı': [4.2, 6.8], 'Gemlik sahili': [2.7, 2.7], 'Çınarcık sahili': [10.7, 22.3], 'Armutlu': [3.6, 7.4], 'Darıca–Eskihisar': [3.2, 8.1], 'İzmit Sekapark sahili': [1.6, 1.6], 'Değirmendere': [2, 7.5], 'İnkumu': [8.2, 19.5], 'Cide limanı': [3.4, 5], 'İnebolu limanı': [1.5, 5.7], 'Selimpaşa sahili': [3.4, 4], 'Halıdere sahili': [5.2, 10.8], 'Bağırganlı': [2.5, 4.7], 'Gideros koyu': [2.9, 5.9], 'Hoşköy': [1.8, 5.5], 'Narlı (Erdek)': [12.8, 9.6], 'Çiftlikköy sahili': [9.1, 13.2], 'Cavit Çağlar iskelesi': [2.3, 6.3],
 };
 // Navionics deniz haritasından elle okunan kıyı derinlikleri (1–2 Kas 2026) [döküm mesafesi ~30–60 m, ~100–150 m açığı];
-// EMODnet'ten önceliklidir. İzmit Körfezi kıyıları çok dik: çoğu merada 100–150 m içinde 30–110 m'ye iniliyor.
+// EMODnet'ten önceliklidir. DİKKAT: kullanılan görüntüleyici (Garmin en-US) derinliği FİT gösteriyor (eş derinlik etiketleri
+// 1640/6562 = 500/2000 m; sık görülen 3,3/6,6/16,4/32,8 = 1/2/5/10 m) — haritadan fit okunur, burada metreye çevrilir.
 // Hersek: lagün içinde ölçüm yok, kıyı setinin körfez tarafı alındı.
-const NAV_DEPTH = {
+const FT = 0.3048, ftm = ([a, b]) => [Math.round(a * FT * 10) / 10, b == null ? null : Math.round(b * FT * 10) / 10];
+const NAV_DEPTH = Object.fromEntries(Object.entries({   // fit
   'Yarımca sahili': [8.9, 16.4], 'Kirazlıyalı': [6.2, 16.4], 'Tütünçiftlik iskelesi': [9.8, 26.2], 'Değirmendere': [4.5, 14],
   'İzmit Sekapark sahili': [6, 16], 'Karamürsel sahili': [16.4, 33], 'Halıdere sahili': [16, 85], 'Hereke sahili': [9, 110],
   'Tavşancıl sahili': [30, 90], 'Darıca–Eskihisar': [6, 33], 'Darıca balıkçı barınağı': [15, 100], 'Zarganaburnu iskelesi': [14, 95],
   'Kaytazdere': [4.5, 16], 'Hersek Lagünü': [3.5, 14],
-};
+  // Kocaeli Karadeniz kıyısı
+  'Kerpe': [5, 17.7], 'Kefken': [4.5, 14], 'Cebeci': [8, 16.4], 'Kumcağız': [4, 10.8], 'Bağırganlı': [12, 25],
+  // İstanbul
+  'Sarayburnu': [8.5, 33], 'Ahırkapı iskelesi': [8, 37],
+}).map(([n, v]) => [n, ftm(v)]));
+// Navionics'te kaya/tehlike işaretleriyle görülen kıyılar: dip tipi OSM'den ve mera adından önce gelir
+const NAV_BOTTOM = {'Kerpe': 'kaya', 'Cebeci': 'kaya', 'Bağırganlı': 'kaya', 'Zarganaburnu iskelesi': 'kaya'};
 Object.assign(D_SEED, NAV_DEPTH);
 const seedDepthNote = n => NAV_DEPTH[n] ? `Navionics haritası · kıyı dibi · ~100 m'de ${NAV_DEPTH[n][1]} m` : D_SEED[n] ? `EMODnet · döküm (ilk 60 m)${D_SEED[n][1] != null ? ` · 100–150 m'de ${D_SEED[n][1]} m` : ''}` : null;
 
@@ -2287,6 +2295,7 @@ const BOTTOM_PREF = {
 };
 function bottomOf(p){
   if (p.bt) return p.bt;
+  if (!p.custom && NAV_BOTTOM[p.n]) return {t: NAV_BOTTOM[p.n], w: 1, src: 'Navionics: kaya işaretleri'};
   if (!p.custom && BT_SEED[p.n]) return {...BT_SEED[p.n], src: seedSrc(BT_SEED[p.n])};
   const k = spotKind(p);
   if (k === 'yapi') return {t:'kaya', w:.6, src:'mendirek/iskele dolgusu'};
