@@ -2055,6 +2055,8 @@ const llKey = p => `${p.lat.toFixed(3)},${p.lng.toFixed(3)}`;
 // Her zaman geçmiş 7 + gelecek 7 gün çekilir ve önbelleğe alınır (Anlık, Tara, Puanla, En verimli saatler aynı veriyi paylaşır)
 async function fetchSeries(pts){
   const fresh = c => c && Date.now() - c.at < SERIES_TTL;
+  // Kayıtlı/seçilen deniz noktalarının kara yönü (rüzgâr kıyıya mı esiyor); tarama hücreleri bunu kafesten alır
+  try { await landBearings(pts.filter(p => !p.anchor)); } catch {}
   // Bellekte yoksa kalıcı önbellekten (sayfa yenilense de 10 dk içinde aynı yer için servise gidilmez)
   for (const k of new Set(pts.map(llKey))) {
     if (fresh(seriesCache.get(k))) continue;
@@ -2179,6 +2181,22 @@ async function elevations(pts){
   if (need.length) try { localStorage.setItem('elevCache', JSON.stringify(elevCache)); } catch {}
   return pts.map(p => elevCache[key(p)]);
 }
+// Kara yönü (p.lb, derece, kuzeyden saat yönünde): noktanın çevresinde 8 yönde 250 ve 600 m'deki yükseklik (deniz = 0)
+// kara olan yönlerin ortalaması. Rüzgârın kıyıya mı karadan mı estiğini bulmak için (envAt → onshore). Bir kez sorulur,
+// yükseklik önbelleğinde kalır. Etrafı tamamen su ya da tamamen karaysa yön yok (null).
+const vecBearing = (x, y) => Math.hypot(x, y) < 0.5 ? null : (Math.atan2(x, y) * 180 / Math.PI + 360) % 360;
+async function landBearings(pts){
+  const todo = pts.filter(p => p.w === 'deniz' && p.lb === undefined);
+  if (!todo.length) return;
+  const dirs = [0, 45, 90, 135, 180, 225, 270, 315];
+  const probes = todo.flatMap(p => [250, 600].flatMap(m => dirs.map(d => offsetLL(L.latLng(p.lat, p.lng), m, d))));
+  const el = await elevations(probes);
+  todo.forEach((p, k) => {
+    let x = 0, y = 0;
+    for (let j = 0; j < 16; j++) if (el[k * 16 + j] > 0) { const d = dirs[j % 8] * Math.PI / 180; x += Math.sin(d); y += Math.cos(d); }
+    p.lb = vecBearing(x, y);
+  });
+}
 // EMODnet bazı yerlerde (Boğaz, İzmit Körfezi'nin bölümleri) hatalı sığ değer veriyor (ör. Gölcük açığı 0,1 m).
 // robust: merkez + çevredeki 8 nokta ölçülür; merkez çevreye göre anormal sığsa çevre medyanı kullanılır.
 async function seaDepth(ll, fallback, robust = false){
@@ -2229,6 +2247,63 @@ function spotKind(p){
 }
 // Derinliği bilinmeyen kayıtlı kıyı noktaları için tipine göre varsayılan derinlik (puan bonusu değil, eksik veri tahmini)
 const KIND_DEPTH = {yapi:10, kum:4, agiz:3};
+// Kayıtlı meraların döküm mesafesindeki derinliği (EMODnet, 1 Kas 2026, bir kez çekilip gömüldü): meradan denize doğru
+// (kara yönünün tersi) 400 m profil; suyun başladığı yerden itibaren ilk 60 m'nin ve 100–150 m'nin medyanı [döküm, uzak].
+// Yalnız güvenilir olanlar: EMODnet kıyının ilk 150–370 m'sini çoğu yerde ≈0 okuyor (çözünürlük ~100 m) — su 120 m'den
+// sonra başlıyorsa ölçüm döküm mesafesine ait değil, alınmadı. Boğaz'da EMODnet güvenilmez, alınmadı. 150 meradan 26'sı.
+const D_SEED = {
+  'Kilyos sahili': [6.6, 6.4], 'Yeşilköy–Florya sahili': [4.6, 8.8], 'Avcılar–Ambarlı sahili': [3.1, 5.4], 'Silivri sahili': [1.5, null], 'Tekirdağ limanı sahili': [5.8, null], 'Kumbağ': [2.1, 5.6], 'Kıyıköy (Pabuçdere/Kazandere ağzı)': [2.7, null], 'Erikli (Saros)': [11.3, 12.1], 'Bandırma limanı': [4.2, 6.8], 'Gemlik sahili': [2.7, 2.7], 'Çınarcık sahili': [10.7, 22.3], 'Armutlu': [3.6, 7.4], 'Darıca–Eskihisar': [3.2, 8.1], 'İzmit Sekapark sahili': [1.6, 1.6], 'Değirmendere': [2, 7.5], 'İnkumu': [8.2, 19.5], 'Cide limanı': [3.4, 5], 'İnebolu limanı': [1.5, 5.7], 'Selimpaşa sahili': [3.4, 4], 'Halıdere sahili': [5.2, 10.8], 'Bağırganlı': [2.5, 4.7], 'Gideros koyu': [2.9, 5.9], 'Hoşköy': [1.8, 5.5], 'Narlı (Erdek)': [12.8, 9.6], 'Çiftlikköy sahili': [9.1, 13.2], 'Cavit Çağlar iskelesi': [2.3, 6.3],
+};
+const seedDepthNote = n => D_SEED[n] ? `EMODnet · döküm (ilk 60 m)${D_SEED[n][1] != null ? ` · 100–150 m'de ${D_SEED[n][1]} m` : ''}` : null;
+
+// ---------- Dip yapısı (kaya / çakıl / kum / çamur) ----------
+// Türkiye kıyıları için ücretsiz bir dip haritası yok (EMODnet AB odaklı). Tahmin sırası, güvene göre (w = etkinin ağırlığı):
+//  1) Kayıtlı meralar: OpenStreetMap kıyı etiketleri, 150 m çevre (BT_SEED, bir kez çekilip gömüldü): falez/kaya/resif/
+//     dalgakıran → kaya, kumsal (yüzeye göre) → kum ya da çakıl, çamurluk/sulak alan → çamur, iskele/rıhtım → kaya (w .5–1)
+//  2) Mera adından tip: mendirek/iskele dolgusu → kaya, dere ağzı → çamur, kumsal/plaj → kum (w 0,4–0,6)
+//  3) Tarama hücreleri: kıyıdan derinleşme hızı — dik yamaç kayalık, yavaş derinleşen sığlık kum; 20 m+ açık taban çamur
+//     (İzmit Körfezi tabanının üst metreleri %90+ silt/kil — karot çalışması) (w 0,4–0,5)
+const BOTTOM_TR = {kaya:'kayalık', cakil:'çakıllı/taşlı', kum:'kumluk', camur:'çamurlu'};
+// Türlerin dip tercihi (tam güvende çarpan); listede olmayan türler (açık su sürü balıkları, kalamar) dipten etkilenmez
+const BOTTOM_PREF = {
+  karagoz:{kaya:1.12, cakil:1.03, kum:.9, camur:.85},   sargoz:{kaya:1.12, cakil:1.03, kum:.9, camur:.85},
+  iskorpit:{kaya:1.12, cakil:1, kum:.85, camur:.85},     eskina:{kaya:1.1, cakil:1, kum:.92, camur:.9},
+  mercan:{kaya:1.06, cakil:1.02, kum:.95, camur:.92},    levrek:{kaya:1.06, cakil:1.04, kum:1, camur:.97},
+  kayabaligi:{kaya:1.06, cakil:1.04, kum:.97, camur:.95},
+  mirmir:{kum:1.12, cakil:1, kaya:.88, camur:.95},       kalkan:{kum:1.1, camur:1.02, cakil:.95, kaya:.85},
+  minekop:{kum:1.08, camur:1.02, cakil:1, kaya:.94},     cupra:{kum:1.06, camur:1.04, cakil:1, kaya:.96},
+  barbun:{kum:1.05, camur:1.05, cakil:.97, kaya:.9},     kirlangic:{kum:1.05, camur:1.05, cakil:.97, kaya:.92},
+  kefal:{camur:1.06, kum:1.02, cakil:1, kaya:.96},       mezgit:{camur:1.05, kum:1.02, cakil:1, kaya:.95},
+};
+function bottomOf(p){
+  if (p.bt) return p.bt;
+  if (!p.custom && BT_SEED[p.n]) return {...BT_SEED[p.n], src: seedSrc(BT_SEED[p.n])};
+  const k = spotKind(p);
+  if (k === 'yapi') return {t:'kaya', w:.6, src:'mendirek/iskele dolgusu'};
+  if (k === 'agiz') return {t:'camur', w:.5, src:'dere ağzı'};
+  if (k === 'kum' && /kumsal|plaj|kum/i.test(p.n)) return {t:'kum', w:.5, src:'kumsal'};
+  return null;
+}
+// Tarama hücresi için derinlik eğiminden tahmin
+function bottomFromSlope(d, shore, est){
+  if (d == null || est) return null;   // tahmini derinlikten eğim çıkmaz
+  if (shore != null && shore <= 400) {
+    if (shore < 50) return null;         // kıyıya bitişik hücre: kıyı mesafesi kaba, eğim güvenilmez
+    const g = d / shore;                 // m derinlik / m kıyı uzaklığı
+    if (g >= 0.1) return {t:'kaya', w:.45, src:'dik yamaç'};
+    if (g <= 0.03 && d <= 10) return {t:'kum', w:.4, src:'yavaş derinleşen sığlık'};
+    return null;
+  }
+  return d >= 20 ? {t:'camur', w:.4, src:'açık taban'} : null;
+}
+// OpenStreetMap'ten kıyı dip tipi (Overpass, 20'şer nokta). Sonuç cihazda kalıcı önbellekte (OSM nadiren değişir).
+// Kayıtlı meraların dip tipi, OSM'den bir kez çekilip gömüldü (1 Kas 2026, 150 m çevre; canlı sorgu gerekmez). 150 meranın
+// 49'unda OSM etiketi var; boş kalanlar mera adından tahmin edilir. w: 1 kayalık/dalgakıran ya da yüzeyi kum olan kumsal,
+// .7 yüzeyi belirsiz kumsal, .5 iskele/rıhtım (dolgu, kesin kaya değil)
+const BT_SEED = {
+  'Galata Köprüsü': {t:'kaya', w:.5}, 'Sarıyer İskelesi': {t:'kaya', w:.5}, 'Rumelifeneri mendireği': {t:'kaya', w:1}, 'Riva dere ağzı': {t:'kum', w:.7}, 'Salacak–Üsküdar': {t:'kaya', w:1}, 'Haydarpaşa mendireği': {t:'kaya', w:1}, 'Moda Burnu': {t:'kaya', w:.5}, 'Fenerbahçe Feneri': {t:'kaya', w:.5}, 'Pendik sahili': {t:'kaya', w:.5}, 'Tuzla (İçmeler–Aydınlı)': {t:'kaya', w:1}, 'Büyükada iskele çevresi': {t:'kaya', w:.5}, 'Burgazada': {t:'kaya', w:.5}, 'Büyükçekmece sahil': {t:'kaya', w:.5}, 'Şile limanı & feneri': {t:'kaya', w:1}, 'Ağva (Göksu ağzı)': {t:'kum', w:.7}, 'Tekirdağ limanı sahili': {t:'kaya', w:.5}, 'Şarköy sahili': {t:'kum', w:.7}, 'Kıyıköy (Pabuçdere/Kazandere ağzı)': {t:'kaya', w:1}, 'Avşa Adası': {t:'kum', w:.7}, 'Gemlik sahili': {t:'kaya', w:.5}, 'Yalova sahili': {t:'kaya', w:.5}, 'Hersek Lagünü': {t:'camur', w:.8}, 'Cebeci': {t:'kum', w:.7}, 'Karasu limanı & sahil': {t:'kum', w:1}, 'Filyos sahili': {t:'kum', w:.7}, 'Amasra limanları': {t:'kum', w:1}, 'Abana sahili': {t:'kaya', w:1}, 'Güzelyalı sahili (Tuzla/Pendik)': {t:'kaya', w:.5}, 'Tarabya koyu': {t:'kaya', w:.5}, 'Bostancı iskelesi': {t:'kaya', w:.5}, 'Kalamış koyu': {t:'kaya', w:.5}, 'Büyükdere sahili': {t:'kaya', w:.5}, 'Garipçe': {t:'kaya', w:1}, 'Kumköy (Kilyos)': {t:'kum', w:.7}, 'Yarımca sahili': {t:'kaya', w:1}, 'Tavşancıl sahili': {t:'kaya', w:1}, 'Kumcağız': {t:'kum', w:1}, 'Kepez sahili': {t:'kaya', w:.5}, 'Güzelyalı (Mudanya)': {t:'kaya', w:1}, 'Eşkel': {t:'kum', w:.7}, 'İdealtepe burnu': {t:'kaya', w:1}, 'Ahırkapı iskelesi': {t:'kaya', w:.5}, 'Güvercinlik (Şile)': {t:'kum', w:.7}, 'Sultaniçe limanı (Enez)': {t:'kaya', w:1}, 'İsmail Nuri balık tutma iskelesi (Gökçeada)': {t:'kaya', w:1}, 'Cunda iskelesi': {t:'kaya', w:.5}, 'Küçükkumla iskelesi': {t:'kaya', w:.5}, 'Armutlu iskelesi': {t:'kaya', w:1}, 'Panayır İskelesi koyu': {t:'kum', w:.7},
+};
+const seedSrc = b => b.t === 'kaya' ? (b.w >= 1 ? 'OSM: kayalık/dalgakıran' : 'OSM: iskele/rıhtım') : b.t === 'camur' ? 'OSM: çamurluk/sulak alan' : b.t === 'cakil' ? 'OSM: çakıl/taş kumsal' : 'OSM: kumsal';
 // En yakın göl/baraj/lagün (elle girilen büyük göller 6 km, OSM kayıtları 2,5 km içinde)
 function lakeNear(ll){
   let best = null, bd = Infinity;
@@ -2288,6 +2363,9 @@ function envAt(S, i){
   for (let k = Math.max(0, i - 167); k <= i; k++) { sum += h.temperature_2m[k]; n++; }
   const airMean = sum / n;
   const sst = mv('sea_surface_temperature');
+  // Su sıcaklığının 24 saatteki değişimi: ani soğuma (poyraz, soğuk su girişi) balığı durgunlaştırır
+  const sst24 = mh && mk != null && mk >= 24 && mh.sea_surface_temperature ? mh.sea_surface_temperature[mk - 24] : null;
+  const wtd = sst != null && sst24 != null ? sst - sst24 : null;
   const wt = water === 'tuzlu'
     ? (sst ?? clamp(airMean + 1.5, 5, 28))
     : clamp(airMean + ({dere:-2.5, nehir:-1, gol:0.5, baraj:0.5, lagun:1}[p.w] ?? 0), 3, 29);
@@ -2299,28 +2377,44 @@ function envAt(S, i){
   const isDay = epoch > rise && epoch < set ? 1 : 0;
   const period = tw ? 'twilight' : (isDay ? 'day' : 'night');
 
-  const wave = mv('wave_height'), wind = h.wind_speed_10m[i];
+  const wave = mv('wave_height'), wind = h.wind_speed_10m[i], windDir = h.wind_direction_10m[i];
+  // Rüzgârın kıyıya göre yönü (p.lb = noktadan karaya doğru yön, bkz. landBearings): +1 denizden karaya (yem ve plankton
+  // kıyıya yığılır, su biraz bulanır), −1 karadan denize (su açılır, balık açığa çekilir). Hafif rüzgârda (8 km/s altı)
+  // ve kıyıdan uzak açık suda (3 km+) etkisi yok.
+  const onshore = water === 'tuzlu' && p.lb != null && wind != null && windDir != null
+    ? Math.cos((windDir - (p.lb + 180)) * Math.PI / 180) * clamp((wind - 8) / 12, 0, 1) * (p.shore == null ? 1 : clamp(1 - p.shore / 3000, 0, 1))
+    : null;
   // Yağmurun suyu bulandırması bölgeye ve derinliğe bağlı: akıntılı Boğaz'da ve açık Karadeniz kıyısında az, sığ koylarda
   // tam; derin suda (12 m+) etkisi azalır. Eskiden her yerde aynıydı ve 6 mm yağmur Boğaz'ı da "bulanık" sayıyordu.
   const zone = water === 'tuzlu' ? seaZone(p.lat, p.lng) : null;
   const rainW = (zone === 'B' ? 0.3 : zone === 'K' ? 0.6 : 1) * (p.d ? clamp(12 / p.d, 0.35, 1) : 1);
   const turb = water === 'tuzlu'
-    ? rain24 / 8 * rainW + (wave ?? 0) / 1.2 + (wind > 30 ? 0.4 : 0)
+    ? rain24 / 8 * rainW + (wave ?? 0) / 1.2 + (wind > 30 ? 0.4 : 0) + Math.max(0, onshore ?? 0) * 0.2
     : rain24 / 6 * ((p.w === 'nehir' || p.w === 'dere') ? 2 : 1) + (wind > 30 ? 0.3 : 0);
-  const phase = SunCalc.getMoonIllumination(new Date(epoch)).phase;
+  const mi = SunCalc.getMoonIllumination(new Date(epoch)), phase = mi.phase;
+  // Gece ay ışığı (0 karanlık … 1 bulutsuz dolunay tepede): ay ufkun altındaysa ya da bulut kapatıyorsa karanlık
+  const moonAlt = SunCalc.getMoonPosition(new Date(epoch), p.lat, p.lng).altitude;
+  const moonLight = period === 'night' ? (moonAlt > 0.05 ? mi.fraction * Math.min(1, 0.4 + Math.sin(moonAlt)) * (1 - 0.8 * h.cloud_cover[i] / 100) : 0) : null;
+  // Dalganın kıyıya göre yönü (+1 denizden kıyıya vuruyor): kıyıya vuran 30 cm+ dalga köpük hattı oluşturur
+  const waveDir = mv('wave_direction');
+  const waveOn = water === 'tuzlu' && p.lb != null && waveDir != null && wave != null && wave >= 0.3
+    ? Math.cos((waveDir - (p.lb + 180)) * Math.PI / 180) : null;
 
   return {
     i, time, epoch, water, hab:p.w, sea: water === 'tuzlu' ? detectSea(p.lat, p.lng) : null, zone,
     temp:h.temperature_2m[i], precip:h.precipitation[i], cloud:h.cloud_cover[i],
     pressure:h.pressure_msl[i], ptrend: i >= 3 ? h.pressure_msl[i] - h.pressure_msl[i-3] : null,
-    wind, windDir:h.wind_direction_10m[i], gust:h.wind_gusts_10m[i], code:h.weather_code[i], isDay,
+    ptrend12: i >= 12 ? h.pressure_msl[i] - h.pressure_msl[i-12] : null,
+    wind, windDir, onshore, gust:h.wind_gusts_10m[i], code:h.weather_code[i], isDay,
     rain24, period, sunrise:D.sunrise[di], sunset:D.sunset[di],
-    sst, wt, wave, waveDir:mv('wave_direction'), wavePer:mv('wave_period'),
+    sst, wt, wtd, wave, waveDir, waveOn, moonLight, wavePer:mv('wave_period'),
+    bottom: water === 'tuzlu' ? bottomOf(p) : null,
     cur:mv('ocean_current_velocity'), curDir:mv('ocean_current_direction'),
     // Kıyı noktalarında genel 6 m varsayımı yerine nokta tipine göre derinlik (mendirek 10, kumsal 4, ağız 3)
-    depth: water === 'tuzlu' ? ((p.d == null || (p.d === 6 && !p.custom)) ? (KIND_DEPTH[spotKind(p)] ?? p.d ?? 8) : p.d) : null,
+    depth: water === 'tuzlu' ? (!p.custom && D_SEED[p.n] ? D_SEED[p.n][0]
+      : (p.d == null || (p.d === 6 && !p.custom)) ? (KIND_DEPTH[spotKind(p)] ?? p.d ?? 8) : p.d) : null,
     murky: turb >= 1, month: +time.slice(5, 7), mmdd: time.slice(5, 10),
-    moonPhase: phase, moonIll: Math.round(SunCalc.getMoonIllumination(new Date(epoch)).fraction * 100),
+    moonPhase: phase, moonIll: Math.round(mi.fraction * 100),
     moonStrong: phase < 0.08 || phase > 0.92 || Math.abs(phase - 0.5) < 0.08,
   };
 }
@@ -2452,6 +2546,7 @@ function solunarFactor(S, e){
 //  TAHMİN MOTORU
 // =====================================================================
 const HUNTERS = ['palamut', 'lufer', 'kolyoz'];
+const LIGHT_FISH = ['istavrit', 'kalamar', 'mezgit'], SURF_FISH = ['levrek', 'karagoz', 'sargoz', 'cupra', 'minekop'];
 function scoreFish(f, e, spot){
   if (f.water !== e.water) return null;
   if (f.water === 'tatli' && !f.hab.includes(e.hab)) return null;
@@ -2464,7 +2559,12 @@ function scoreFish(f, e, spot){
   else if (t < lo) { s *= 0.35 + 0.65*(t - tmin)/(lo - tmin); why.push('su biraz soğuk'); }
   else { s *= 0.35 + 0.65*(tmax - t)/(tmax - hi); why.push('su biraz sıcak'); }
 
-  if (f.months.includes(e.month)) why.push('mevsimi'); else { s *= 0.45; why.push('mevsim dışı'); }
+  // Sezonun hemen öncesi/sonrası ayı yumuşak geçer: eskiden ay değişince puan bir gecede yarıya iniyordu (mırmır 31 Eki 48 →
+  // 1 Kas 18; oysa 31 Eki'de trofe mırmır tutuldu). Ayın bolluğu (ABUND) azalmayı ayrıca yansıtıyor.
+  const near = m => f.months.includes(((e.month + m + 11) % 12) + 1);
+  if (f.months.includes(e.month)) why.push('mevsimi');
+  else if (near(-1) || near(1)) { s *= 0.75; why.push(near(-1) ? 'mevsim sonu' : 'mevsim başı'); }
+  else { s *= 0.45; why.push('mevsim dışı'); }
   // Bolluk (bölge × ay): sezon zirvesindeki bol tür ×1,10'a kadar çıkar, o bölgede/ayda az bulunan tür ×0,5'e kadar iner
   const A = f.water === 'tuzlu' && e.zone && ABUND[f.id];
   if (A) {
@@ -2522,6 +2622,20 @@ function scoreFish(f, e, spot){
 
   if (f.best.includes(e.period)) { s *= 1.12; why.push({twilight:'alacakaranlık – av saati', night:'gece aktif', day:'gündüz aktif'}[e.period]); }
   else s *= 0.85;
+  // Gece ay ışığı: ışığa toplanan türler (istavrit, kalamar, mezgit) karanlık gecede iskele ve sokak ışığı altına yığılır;
+  // parlak dolunayda tüm denize dağılır
+  if (e.moonLight != null && LIGHT_FISH.includes(f.id)) {
+    if (e.moonLight < 0.15) { s *= 1.06; why.push('karanlık gece – ışıklı merada toplanır'); }
+    else if (e.moonLight > 0.6) { s *= 0.92; why.push('parlak ay ışığı – sürü dağılır'); }
+  }
+  // Dip yapısı: türün sevdiği dipte artı, sevmediğinde eksi; tahminin güvenine (w) göre ölçeklenir
+  const bp = e.bottom && BOTTOM_PREF[f.id] && BOTTOM_PREF[f.id][e.bottom.t];
+  if (bp && bp !== 1) {
+    s *= 1 + (bp - 1) * e.bottom.w;
+    if (Math.abs(bp - 1) >= 0.05) why.push(`${BOTTOM_TR[e.bottom.t]} dip – ${bp > 1 ? 'sever' : 'pek sevmez'}`);
+  }
+  // Kıyıya vuran dalga köpük hattı oluşturur: levrek, karagöz, sargoz, çipura, minekop orada sürüklenen yemi bekler
+  if (e.waveOn != null && e.waveOn >= 0.5 && e.wave <= 1.5 && SURF_FISH.includes(f.id)) { s *= 1.06; why.push('dalga kıyıya vuruyor – köpük hattı'); }
 
   if (e.ptrend != null) {
     if (e.ptrend <= -1) { s *= 1.1; why.push('düşen basınç – iştah artar'); }
@@ -2568,6 +2682,18 @@ function hourScore(S, i){
     else if (nightFeed && hr >= 4) { m *= 1.06; pos.push('sabaha karşı – balık kıyıya yanaşır'); }
   }
   if (e.ptrend != null && e.ptrend <= -1) pos.push('düşen basınç');
+  // Uzun basınç eğilimi (12 sa): 3 saatlik pencere yavaş ama sürekli düşüşü kaçırıyordu ("1028'den 1023'e düşerken
+  // yanaştılar", lrfizmit 4 Eki). Son 3 saatte zaten düşüyorsa (türe ×1,10 verildi) burada tekrar sayılmaz.
+  if (e.ptrend12 != null && e.ptrend12 <= -3 && !(e.ptrend != null && e.ptrend <= -1)) { m *= 1.05; pos.push(`basınç 12 saattir düşüyor (${e.ptrend12.toFixed(0)} hPa)`); }
+  else if (e.ptrend12 != null && e.ptrend12 >= 5) { m *= 0.94; neg.push(`basınç 12 saatte hızla yükseldi (+${e.ptrend12.toFixed(0)} hPa, cephe sonrası)`); }
+  // Su sıcaklığının 24 saatteki değişimi: ani soğuma balığı durgunlaştırır, ılık su girişi hareketlendirir
+  if (e.water === 'tuzlu' && e.wtd != null) {
+    if (e.wtd <= -1) { m *= Math.max(0.85, 1 + 0.07 * e.wtd); neg.push(`su 1 günde ${(-e.wtd).toFixed(1)}°C soğudu`); }
+    else if (e.wtd >= 0.8) { m *= 1.04; pos.push(`su 1 günde ${e.wtd.toFixed(1)}°C ısındı`); }
+  }
+  // Rüzgâr yönü (İzmit'te balıkçıların takip ettiği ölçüt): kıyıya esen rüzgâr en fazla +%8, karadan esen en fazla −%6
+  if (e.onshore != null && e.onshore >= 0.3) { m *= 1 + 0.08 * e.onshore; pos.push(`kıyıya esen rüzgâr (${dirName(e.windDir)}) – yem kıyıya yığılır`); }
+  else if (e.onshore != null && e.onshore <= -0.3) { m *= 1 + 0.06 * e.onshore; neg.push(`karadan esen rüzgâr (${dirName(e.windDir)}) – balık açığa çekilir`); }
   if (e.wind > 40 || e.gust > 55) { m *= 0.45; neg.push('fırtına rüzgârı'); }
   else if (e.wind > 30 || e.gust > 45) { m *= 0.7; neg.push('sert rüzgâr'); }
   else if (e.wind > 25 || e.gust > 38) { m *= 0.88; neg.push('rüzgârlı – döküm zor'); }
@@ -2671,6 +2797,8 @@ function weatherAdvice(e){
   if (e.water === 'tuzlu' && e.wave != null && e.wave < 0.3) a.push('Deniz çarşaf: balık temkinli; ince misina, doğal yem, alacakaranlığı bekle.');
   if (e.rain24 > 5 && (e.hab === 'nehir' || e.hab === 'dere')) a.push('Yağmur sonrası akarsu bulandı: solucan ve kokulu yemler öne çıkar; yayın ve sazan hareketlenir.');
   if (e.rain24 > 5 && e.water === 'tuzlu') a.push('Yağmur sonrası dere ağızları bulanık: levrek için en iyi fırsatlardan biri.');
+  if (e.onshore != null && e.onshore >= 0.3) a.push(`Rüzgâr ${dirName(e.windDir)} yönünden kıyıya vuruyor: yem balığı ve plankton kıyıya yığılır; rüzgârın vurduğu kıyı tarafına yönel.`);
+  if (e.onshore != null && e.onshore <= -0.3) a.push(`Rüzgâr ${dirName(e.windDir)} yönünden karadan esiyor: su açılır, balık açığa çekilir; uzağa at, derin kenarları dene.`);
   if (e.water === 'tatli' && e.wind >= 10 && e.wind <= 25) a.push(`Rüzgâr ${dirName(e.windDir)} yönünden: rüzgârın vurduğu kıyıda yem birikir, sazan/sudak oraya toplanır.`);
   if (e.wt < 10 && e.water === 'tatli') a.push('Su soğuk: balık yavaş; küçük yem, yavaş çekiş, az yemleme, öğle sıcağını değerlendir.');
   if (e.wt > 24) a.push('Su sıcak: balık derine ve gölgeye çekilir; sabah erken ve akşam geç saatleri tercih et.');
@@ -2723,18 +2851,28 @@ function spotsInSelection(){
   return list;
 }
 
-function spotIcon(s){
+function spotIcon(s, dot){
   const H = state.ratings[s.n], col = s.w === 'deniz' ? '#2b7bd6' : '#2e9e5b';
   // Popüler (elle derlenmiş) noktalar büyük, OpenStreetMap'ten gelen küçük su kayıtları küçük ve soluk
   const sz = s.auto ? 10 : 16;
-  if (!H) return L.divIcon({className:'', iconSize:[sz + 2, sz + 2], iconAnchor:[sz / 2 + 1, sz / 2 + 1],
+  if (!H || dot) return L.divIcon({className:'', iconSize:[sz + 2, sz + 2], iconAnchor:[sz / 2 + 1, sz / 2 + 1],
     html:`<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${col};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);${s.auto ? 'opacity:.75' : ''}"></div>`});
   return L.divIcon({className:'', iconSize:null, html:pinHtml(H)});
 }
+// Harita baloncuğu (ilk 3 balık) kabaca 120×80 px yer kaplar; iki baloncuğun köşe noktaları bundan yakınsa çakışır
+const BUB_W = 124, BUB_H = 84, bubFits = (cp, taken) => taken.every(q => Math.abs(cp.x - q.x) > BUB_W || Math.abs(cp.y - q.y) > BUB_H);
+let pinnedSpots = new Set(), scanBubbles = [];
 function drawSpots(){
   spotLayer.clearLayers();
+  // Puanlı meraların baloncukları birbirinin ve tarama baloncuklarının üstüne binmesin (uzak zoomda körfezi tamamen
+  // kaplıyordu): önce taramanın en iyi noktaları (drawScan), sonra en yüksek puanlı mera yerleşir; çakışan mera küçük
+  // nokta olarak kalır. Zoom değişince yeniden hesaplanır.
+  const placed = scanBubbles.map(ll => map.latLngToContainerPoint(ll));
+  pinnedSpots = new Set(SPOTS.filter(s => spotVisible(s) && state.ratings[s.n])
+    .sort((a, b) => (tScore(state.ratings[b.n]) ?? -1) - (tScore(state.ratings[a.n]) ?? -1))
+    .filter(s => { const cp = map.latLngToContainerPoint([s.lat, s.lng]); if (!bubFits(cp, placed)) return false; placed.push(cp); return true; }));
   SPOTS.filter(spotVisible).forEach(s => {
-    L.marker([s.lat, s.lng], {icon: spotIcon(s), riseOnHover:true}).addTo(spotLayer)
+    L.marker([s.lat, s.lng], {icon: spotIcon(s, !pinnedSpots.has(s)), riseOnHover:true}).addTo(spotLayer)
       .bindTooltip(`<b>${s.n}</b><br>${W_NAMES[s.w]} · ${s.il}/${s.ic}`, {direction:'top', offset:[0,-8]})
       .on('click', () => openSpot(s));
   });
@@ -2789,6 +2927,7 @@ function updateLabels(){
   });
 }
 map.on('zoomend moveend', updateLabels);
+map.on('zoomend', () => { if (pinnedSpots.size && !state.scan.length) drawSpots(); });   // tarama varsa drawScan çizer
 
 function popularSpots(){
   let list = SPOTS.filter(s => spotVisible(s) && (!state.il || s.il === state.il));
@@ -3082,15 +3221,16 @@ function renderDetail(){
     ${stat('Hava', `${wIcon(e.code, e.isDay)} ${Math.round(e.temp)}°C`, WCODES[e.code] || '')}
     ${stat('Rüzgâr', `${Math.round(e.wind)} <small>km/s</small>`, `${arrow(e.windDir)} ${dirName(e.windDir)} · hamle ${Math.round(e.gust)}`)}
     ${stat('Yağış', `${e.precip} <small>mm</small>`, `son 24 sa: ${e.rain24.toFixed(1)} mm`)}
-    ${stat('Basınç', `${Math.round(e.pressure)}`, e.ptrend == null ? 'hPa' : `3 sa: ${e.ptrend > 0 ? '+' : ''}${e.ptrend.toFixed(1)} hPa`)}
+    ${stat('Basınç', `${Math.round(e.pressure)}`, e.ptrend == null ? 'hPa' : `3 sa: ${e.ptrend > 0 ? '+' : ''}${e.ptrend.toFixed(1)}${e.ptrend12 != null ? ` · 12 sa: ${e.ptrend12 > 0 ? '+' : ''}${e.ptrend12.toFixed(0)}` : ''} hPa`)}
     ${stat('Bulut', `%${e.cloud}`, e.cloud > 70 ? 'kapalı' : e.cloud > 30 ? 'parçalı' : 'açık')}
-    ${stat('Ay', `%${e.moonIll}`, moonName(e.moonPhase))}
+    ${stat('Ay', `%${e.moonIll}`, moonName(e.moonPhase) + (e.moonLight != null ? (e.moonLight < 0.15 ? ' · gece karanlık' : e.moonLight > 0.6 ? ' · gece aydınlık' : '') : ''))}
   </div></div>
   <div class="card"><h2>Su</h2><div class="grid">
-    ${stat('Su sıcaklığı', `${e.wt.toFixed(1)}°C`, e.water === 'tuzlu' && e.sst != null ? (S.mFrom ? `model · ${S.mFrom} km açıktan` : 'ölçüm/model') : 'tahmini')}
+    ${stat('Su sıcaklığı', `${e.wt.toFixed(1)}°C`, (e.water === 'tuzlu' && e.sst != null ? (S.mFrom ? `model · ${S.mFrom} km açıktan` : 'ölçüm/model') : 'tahmini') + (e.wtd != null && Math.abs(e.wtd) >= 0.3 ? ` · 24 sa: ${e.wtd > 0 ? '+' : ''}${e.wtd.toFixed(1)}°` : ''))}
     ${e.water === 'tuzlu' ? stat('Dalga', e.wave != null ? `${e.wave.toFixed(1)} m` : '—', e.wavePer ? `${e.wavePer.toFixed(1)} sn · ${dirName(e.waveDir)}` : '') : ''}
     ${e.water === 'tuzlu' ? stat('Akıntı', e.cur != null ? `${e.cur.toFixed(1)} <small>km/s</small>` : '—', e.curDir != null ? `${dirName(e.curDir)} yönüne` : '') : ''}
-    ${e.water === 'tuzlu' ? stat('Derinlik', `${Math.round(e.depth)} m`, spot.dNote || (spot.custom ? 'EMODnet' : 'kıyıdan tipik')) : ''}
+    ${e.water === 'tuzlu' ? stat('Derinlik', `${e.depth < 10 ? e.depth.toFixed(1).replace('.0', '') : Math.round(e.depth)} m`, spot.dNote || seedDepthNote(spot.n) || (spot.custom ? 'EMODnet' : 'tahmini (mera tipinden)')) : ''}
+    ${e.bottom ? stat('Dip', BOTTOM_TR[e.bottom.t], `tahmin · ${e.bottom.src}`) : ''}
     ${stat('Su durumu', e.murky ? 'Bulanık' : 'Berrak', 'tahmini')}
     ${stat('Işık', {day:'Gündüz', night:'Gece', twilight:'Alacakaranlık'}[e.period], `☀ ${hh(e.sunrise)} – ${hh(e.sunset)}`)}
   </div>
@@ -3439,33 +3579,31 @@ function drawScan(){
   // En iyi hücrelere ilk 3 balık baloncuğu: her tarama bölgesi için ayrı ayrı en iyi 5, bölge büyükse
   // (deniz alanının köşegeni 5 km+, ör. Tütünçiftlik–Gölcük ~6 km) en iyi 10. Baloncuklar birbirinin üstüne binmesin:
   // baloncuğun kendi boyutuna göre (~120×80 px) çakışan aday atlanır, sıradaki en iyi nokta denenir.
-  const chosen = [], groups = new Map(), BW = 124, BH = 84;
-  const fits = cp => chosen.every(y => Math.abs(cp.x - y.cp.x) > BW || Math.abs(cp.y - y.cp.y) > BH);
-  // Puanlı bilinen meraların baloncukları da yer kaplar: tarama baloncuğu onların üstüne binmesin
-  const taken = SPOTS.filter(s => spotVisible(s) && state.ratings[s.n]).map(s => ({cp: map.latLngToContainerPoint([s.lat, s.lng])}));
+  // Tarama baloncukları önce yerleşir; mera baloncukları kalan boşluğa (drawSpots, en sonda)
+  const chosen = [], groups = new Map(), taken = [];
   scored.filter(x => x.s != null && x.H.list.length).forEach(x => { const k = x.at || 0; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(x); });
-  chosen.push(...taken);
   for (const list of groups.values()) {
     const b = L.latLngBounds(list.map(x => [x.S.p.lat, x.S.p.lng]));
     const want = map.distance(b.getSouthWest(), b.getNorthEast()) >= 5000 ? 10 : 5;
     let n = 0;
     for (const x of list.sort((a, c) => c.s - a.s)) {
       const cp = map.latLngToContainerPoint([x.S.p.lat, x.S.p.lng]);
-      if (fits(cp)) { chosen.push({...x, cp}); n++; }
+      if (bubFits(cp, taken)) { taken.push(cp); chosen.push(x); n++; }
       if (n >= want) break;
     }
   }
-  chosen.splice(0, taken.length);
   chosen.forEach(({S, H}) => L.marker([S.p.lat, S.p.lng], {icon: L.divIcon({className:'', iconSize:null,
     html: pinHtml(H, `<div class="muted" style="text-align:center">${Math.round(S.p.d)} m${S.p.shore != null ? ' · ' + shoreTxt(S.p.shore) : ''}</div>`)})})
     .addTo(scanLayer).on('click', () => openSpot(S.p)));
+  scanBubbles = chosen.map(({S}) => [S.p.lat, S.p.lng]);
+  drawSpots();
   heatLegend.update();
 }
 // Isı haritası hücresinin bilgisi (masaüstünde fareyle üzerine gelince, mobilde parmakla gezinirken)
 function heatTip({S:{p}, H, s}){
   const top = state.target ? (s == null ? `${FISH_BY_ID[state.target].ad} beklenmez` : `🎯 ${FISH_BY_ID[state.target].ad}`)
                            : H.list.slice(0, 3).map(r => `${r.fish.ad} ${r.adj}`).join(' · ');
-  return `<b>${s ?? '–'}</b> · ${top}<br>${p.dEst ? '~' : ''}${Math.round(p.d)} m${p.dEst ? ' (tahmini)' : ''}${p.shore != null ? ' · ' + shoreTxt(p.shore) : ''}`;
+  return `<b>${s ?? '–'}</b> · ${top}<br>${p.dEst ? '~' : ''}${Math.round(p.d)} m${p.dEst ? ' (tahmini)' : ''}${p.shore != null ? ' · ' + shoreTxt(p.shore) : ''}${p.bt ? ' · ' + BOTTOM_TR[p.bt.t] + ' dip?' : ''}`;
 }
 // Dokunmatik ekran: ısı haritası açıkken tek parmakla gezdikçe parmağın üstünde bilgi kutusu (iki parmak kaydırır/yakınlaştırır)
 const TOUCH = matchMedia('(pointer: coarse)').matches;   // ana giriş parmak (telefon/tablet); fareli dokunmatik dizüstü hariç
@@ -3848,6 +3986,16 @@ async function scan(){
       // Açık denizde (Karadeniz, açık Marmara/Ege) yalnız kıyıdan en fazla 1 km; kapalı ve dar sularda (İzmit Körfezi,
       // İstanbul Boğazı) tamamı — körfezin ortası boş kalmasın
       cells = grid.cells.filter(c => ['I', 'B'].includes(seaZone(c.lat, c.lng)) || (c.shore != null && c.shore <= SHORE_MAX));
+      // Hücrenin kara yönü: 2 hücre çevresindeki kafeste su olmayan (kara) komşuların ortalama yönü (satır kuzeye, sütun doğuya artar)
+      const wet = new Set(grid.cells.map(c => c.r + ',' + c.c));
+      cells.forEach(c => {
+        let x = 0, y = 0;
+        for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) {
+          const r = c.r + dr, k = c.c + dc;
+          if ((dr || dc) && r >= 0 && r < grid.rows && k >= 0 && k < grid.cols && !wet.has(r + ',' + k)) { const n = Math.hypot(dr, dc); x += dc / n; y += dr / n; }
+        }
+        c.lb = vecBearing(x, y);
+      });
       // Hava görünen alanda az değişir: alan 3×2 parçaya bölünür, her parçadaki en açık hücre çapa olur (en fazla 6 sorgu)
       for (let i = 0; i < 2; i++) for (let j = 0; j < 3; j++) {
         const inPart = cells.filter(c => Math.floor(c.r / grid.rows * 2) === i && Math.floor(c.c / grid.cols * 3) === j);
@@ -3890,7 +4038,7 @@ async function scan(){
     // çapa sınırlarında puan birden sıçramasın, ör. fırtına hücresinin kenarı yumuşak geçsin)
     if (anchors.length) cells.forEach(c => {
       const p = {n:'Açık deniz noktası', w:'deniz', lat:c.lat, lng:c.lng, d:Math.max(0.5, Math.round(c.d * 10) / 10), dNote: c.est ? 'tahmini (EMODnet burada boş)' : 'EMODnet', dEst:c.est,
-        shore:c.shore, f:[], custom:true, cell:[grid.dLat, grid.dLng], rc:[grid.gr0 + c.r, grid.gc0 + c.c], lk:grid.lk, boxes:c.boxes};
+        shore:c.shore, lb:c.lb, bt: bottomFromSlope(c.d, c.shore, c.est), f:[], custom:true, cell:[grid.dLat, grid.dLng], rc:[grid.gr0 + c.r, grid.gc0 + c.c], lk:grid.lk, boxes:c.boxes};
       const near = anchors.map(A => ({A, d: Math.hypot(A.p.lat - c.lat, (A.p.lng - c.lng) * Math.cos(c.lat * Math.PI / 180))}))
         .sort((x, y) => x.d - y.d);   // tüm çapalar: ağırlıklar uzaklıkla sürekli değişir, sınırda sıçrama olmaz
       const Hs = near.map(({A, d}) => ({H: hourScore({...A, p}, A.nowIdx), w: 1 / (d * d + 1e-6)}));
