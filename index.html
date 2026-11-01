@@ -2254,7 +2254,17 @@ const KIND_DEPTH = {yapi:10, kum:4, agiz:3};
 const D_SEED = {
   'Kilyos sahili': [6.6, 6.4], 'Yeşilköy–Florya sahili': [4.6, 8.8], 'Avcılar–Ambarlı sahili': [3.1, 5.4], 'Silivri sahili': [1.5, null], 'Tekirdağ limanı sahili': [5.8, null], 'Kumbağ': [2.1, 5.6], 'Kıyıköy (Pabuçdere/Kazandere ağzı)': [2.7, null], 'Erikli (Saros)': [11.3, 12.1], 'Bandırma limanı': [4.2, 6.8], 'Gemlik sahili': [2.7, 2.7], 'Çınarcık sahili': [10.7, 22.3], 'Armutlu': [3.6, 7.4], 'Darıca–Eskihisar': [3.2, 8.1], 'İzmit Sekapark sahili': [1.6, 1.6], 'Değirmendere': [2, 7.5], 'İnkumu': [8.2, 19.5], 'Cide limanı': [3.4, 5], 'İnebolu limanı': [1.5, 5.7], 'Selimpaşa sahili': [3.4, 4], 'Halıdere sahili': [5.2, 10.8], 'Bağırganlı': [2.5, 4.7], 'Gideros koyu': [2.9, 5.9], 'Hoşköy': [1.8, 5.5], 'Narlı (Erdek)': [12.8, 9.6], 'Çiftlikköy sahili': [9.1, 13.2], 'Cavit Çağlar iskelesi': [2.3, 6.3],
 };
-const seedDepthNote = n => D_SEED[n] ? `EMODnet · döküm (ilk 60 m)${D_SEED[n][1] != null ? ` · 100–150 m'de ${D_SEED[n][1]} m` : ''}` : null;
+// Navionics deniz haritasından elle okunan kıyı derinlikleri (1–2 Kas 2026) [döküm mesafesi ~30–60 m, ~100–150 m açığı];
+// EMODnet'ten önceliklidir. İzmit Körfezi kıyıları çok dik: çoğu merada 100–150 m içinde 30–110 m'ye iniliyor.
+// Hersek: lagün içinde ölçüm yok, kıyı setinin körfez tarafı alındı.
+const NAV_DEPTH = {
+  'Yarımca sahili': [8.9, 16.4], 'Kirazlıyalı': [6.2, 16.4], 'Tütünçiftlik iskelesi': [9.8, 26.2], 'Değirmendere': [4.5, 14],
+  'İzmit Sekapark sahili': [6, 16], 'Karamürsel sahili': [16.4, 33], 'Halıdere sahili': [16, 85], 'Hereke sahili': [9, 110],
+  'Tavşancıl sahili': [30, 90], 'Darıca–Eskihisar': [6, 33], 'Darıca balıkçı barınağı': [15, 100], 'Zarganaburnu iskelesi': [14, 95],
+  'Kaytazdere': [4.5, 16], 'Hersek Lagünü': [3.5, 14],
+};
+Object.assign(D_SEED, NAV_DEPTH);
+const seedDepthNote = n => NAV_DEPTH[n] ? `Navionics haritası · kıyı dibi · ~100 m'de ${NAV_DEPTH[n][1]} m` : D_SEED[n] ? `EMODnet · döküm (ilk 60 m)${D_SEED[n][1] != null ? ` · 100–150 m'de ${D_SEED[n][1]} m` : ''}` : null;
 
 // ---------- Dip yapısı (kaya / çakıl / kum / çamur) ----------
 // Türkiye kıyıları için ücretsiz bir dip haritası yok (EMODnet AB odaklı). Tahmin sırası, güvene göre (w = etkinin ağırlığı):
