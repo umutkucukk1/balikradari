@@ -2284,11 +2284,45 @@ const NAV_DEPTH = Object.fromEntries(Object.entries({   // fit
   'Yeşilköy–Florya sahili': [15, 45], 'Menekşe sahili': [4, 40], 'Avcılar–Ambarlı sahili': [10, 50],
   'Büyükçekmece sahil': [6, 40], 'Büyükçekmece balık tutma noktası': [30, 95], 'Kumburgaz sahili': [5, 30],
   'Selimpaşa sahili': [5, 30], 'Silivri sahili': [8, 33], 'Burgazada': [30, 100],
+  // Yalova
+  'Yalova sahili': [25, 170], 'Çiftlikköy sahili': [10, 65], 'Çınarcık sahili': [16, 200], 'Teşvikiye (Çınarcık)': [16, 150],
+  'Armutlu': [15, 54], 'Armutlu iskelesi': [20, 60],
+  // Bursa
+  'Mudanya iskelesi': [20, 150], 'Güzelyalı (Mudanya)': [15, 200], 'Kumyaka': [15, 120], 'Tirilye (Zeytinbağı)': [15, 112],
+  'Kurşunlu': [18, 190], 'Cavit Çağlar iskelesi': [15, 100], 'Can iskelesi': [15, 100], 'Gemlik sahili': [15, 150],
+  'Küçükkumla iskelesi': [20, 148],
+  // Balıkesir
+  'Erdek sahili': [20, 98], 'Ocaklar (Kapıdağ)': [20, 108], 'Narlı (Erdek)': [20, 108], 'Bandırma limanı': [26, 98],
+  'Marmara Adası (Saraylar)': [30, 260], 'Avşa Adası': [13, 65],
+  // Çanakkale
+  'Çanakkale Kordonu': [20, 160], 'Kilitbahir': [25, 180], 'Kepez sahili': [20, 157], 'Güzelyalı (Çanakkale)': [20, 150],
+  'Lapseki sahili': [10, 70], 'Çardak sahili': [15, 100], 'Gelibolu limanı': [20, 125],
+  // Tekirdağ
+  'Tekirdağ limanı sahili': [15, 100], 'Barbaros sahili': [15, 200], 'Kumbağ': [15, 200], 'Hoşköy': [15, 200],
+  'Mürefte': [15, 160], 'Şarköy sahili': [10, 100], 'Marmara Ereğlisi': [15, 100], 'Sultanköy': [15, 72],
+  // Kırklareli
+  'Kıyıköy (Pabuçdere/Kazandere ağzı)': [20, 110], 'İğneada limanı': [30, 90], 'İğneada Feneri': [30, 90], 'Panayır İskelesi koyu': [20, 95],
+  // Edirne
+  'Enez sahili (Saros)': [5, 40], 'Sultaniçe limanı (Enez)': [10, 56],
+  // Sakarya
+  'Karasu limanı & sahil': [10, 60], 'Sakarya Nehri ağzı': [6, 30], 'Kocaali sahili': [8, 50],
+  // Düzce, Zonguldak
+  'Akçakoca limanı': [10, 50], 'Melen Çayı ağzı': [10, 35], 'Ereğli sahili': [30, 150], 'Alaplı': [20, 88],
+  'Zonguldak limanı': [30, 138], 'Kozlu': [30, 125], 'Kilimli limanı': [25, 200], 'Filyos sahili': [11, 52],
+  // Bartın, Kastamonu
+  'Amasra limanları': [25, 80], 'İnkumu': [15, 60], 'Kurucaşile': [20, 118], 'Gideros koyu': [20, 120], 'Cide limanı': [16, 120],
+  'Doğanyurt': [20, 120], 'İnebolu limanı': [15, 120], 'Abana sahili': [15, 80],
+  'Karabiga': [25, 110], 'İsmail Nuri balık tutma iskelesi (Gökçeada)': [30, 170], 'Esenköy': [20, 200], 'Eşkel': [12, 82],
+  'Erikli (Saros)': [6, 40], 'Odunluk iskelesi': [18, 50], 'Cunda iskelesi': [10, 30],
 }).map(([n, v]) => [n, ftm(v)]));
 // Navionics'te kaya/tehlike işaretleriyle görülen kıyılar: dip tipi OSM'den ve mera adından önce gelir
 const NAV_BOTTOM = {'Kerpe': 'kaya', 'Cebeci': 'kaya', 'Bağırganlı': 'kaya', 'Zarganaburnu iskelesi': 'kaya', 'Fenerbahçe Feneri': 'kaya',
   'Garipçe': 'kaya', 'Poyrazköy': 'kaya', 'Rumelifeneri mendireği': 'kaya', 'Anadolu Feneri': 'kaya', 'Maryol balıkçı barınağı': 'kaya',
-  'Şile limanı & feneri': 'kaya', 'Güvercinlik (Şile)': 'kaya', 'Silivri sahili': 'kaya', 'Burgazada': 'kaya'};
+  'Şile limanı & feneri': 'kaya', 'Güvercinlik (Şile)': 'kaya', 'Silivri sahili': 'kaya', 'Burgazada': 'kaya',
+  'Marmara Adası (Saraylar)': 'kaya', 'Marmara Ereğlisi': 'kaya', 'İğneada Feneri': 'kaya',
+  'Akçakoca limanı': 'kaya', 'Kozlu': 'kaya', 'Kilimli limanı': 'kaya', 'Kurucaşile': 'kaya', 'Gideros koyu': 'kaya',
+  'Cide limanı': 'kaya', 'Doğanyurt': 'kaya', 'İnebolu limanı': 'kaya',
+  'İsmail Nuri balık tutma iskelesi (Gökçeada)': 'kaya', 'Esenköy': 'kaya'};
 Object.assign(D_SEED, NAV_DEPTH);
 const seedDepthNote = n => NAV_DEPTH[n] ? `Navionics haritası · kıyı dibi · ~100 m'de ${NAV_DEPTH[n][1]} m` : D_SEED[n] ? `EMODnet · döküm (ilk 60 m)${D_SEED[n][1] != null ? ` · 100–150 m'de ${D_SEED[n][1]} m` : ''}` : null;
 
