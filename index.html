@@ -2267,10 +2267,28 @@ const NAV_DEPTH = Object.fromEntries(Object.entries({   // fit
   // Kocaeli Karadeniz kıyısı
   'Kerpe': [5, 17.7], 'Kefken': [4.5, 14], 'Cebeci': [8, 16.4], 'Kumcağız': [4, 10.8], 'Bağırganlı': [12, 25],
   // İstanbul
-  'Sarayburnu': [8.5, 33], 'Ahırkapı iskelesi': [8, 37],
+  'Sarayburnu': [8.5, 33], 'Ahırkapı iskelesi': [8, 37], 'Karaköy İskelesi': [22, 75], 'Galata Köprüsü': [115, 125],
+  'Unkapanı (Atatürk) Köprüsü': [100, 125], 'Kabataş–Dolmabahçe': [15, 80], 'Kuzguncuk': [30, 65], 'Beylerbeyi iskelesi': [20, 108],
+  'Salacak–Üsküdar': [22, 57], 'Haydarpaşa mendireği': [35, 60], 'Kalamış koyu': [20, 27], 'Fenerbahçe Feneri': [12, 30],
+  'Moda Burnu': [26, 29], 'Caddebostan sahili': [16, 30], 'Bostancı iskelesi': [15, 27], 'Maltepe dolgu alanı': [20, 46],
+  'İdealtepe burnu': [18, 50], 'Küçükyalı mendireği': [20, 50], 'Dragos sahili': [30, 52], 'Kartal sahili': [30, 112],
+  'Büyükada iskele çevresi': [16, 33], 'Pendik sahili': [30, 70], 'Güzelyalı sahili (Tuzla/Pendik)': [20, 35],
+  'Tuzla (İçmeler–Aydınlı)': [20, 35], 'Akıntıburnu (Arnavutköy)': [25, 150], 'Bebek sahili': [12, 65], 'Kandilli sahili': [12, 100],
+  'Kuleli önü (Çengelköy)': [12, 128], 'Kanlıca–Çubuklu sahili': [30, 70], 'Rumelihisarı': [25, 60], 'Aşiyan': [25, 60],
+  'Emirgan–İstinye sahili': [20, 60], 'Kireçburnu–Yeniköy': [40, 150], 'Tarabya koyu': [10, 90], 'Beykoz sahili': [30, 70],
+  'Büyükdere sahili': [40, 115], 'Kefeliköy': [45, 115], 'Sarıyer İskelesi': [40, 150], 'Rumeli Kavağı': [30, 200],
+  'Anadolu Kavağı': [30, 105], 'Garipçe': [30, 70], 'Poyrazköy': [25, 58], 'Rumelifeneri mendireği': [20, 60], 'Anadolu Feneri': [30, 50],
+  'Kilyos sahili': [3, 20], 'Kumköy (Kilyos)': [3, 17], 'Riva dere ağzı': [8, 34], 'Maryol balıkçı barınağı': [15, 40],
+  'Şile limanı & feneri': [23, 41], 'Güvercinlik (Şile)': [8, 25], 'Ağva (Göksu ağzı)': [5, 20],
+  'Yenikapı dolgu alanı': [35, 72], 'Taş İskele (Bakırköy)': [16, 60], 'Ataköy sahili': [16, 50],
+  'Yeşilköy–Florya sahili': [15, 45], 'Menekşe sahili': [4, 40], 'Avcılar–Ambarlı sahili': [10, 50],
+  'Büyükçekmece sahil': [6, 40], 'Büyükçekmece balık tutma noktası': [30, 95], 'Kumburgaz sahili': [5, 30],
+  'Selimpaşa sahili': [5, 30], 'Silivri sahili': [8, 33], 'Burgazada': [30, 100],
 }).map(([n, v]) => [n, ftm(v)]));
 // Navionics'te kaya/tehlike işaretleriyle görülen kıyılar: dip tipi OSM'den ve mera adından önce gelir
-const NAV_BOTTOM = {'Kerpe': 'kaya', 'Cebeci': 'kaya', 'Bağırganlı': 'kaya', 'Zarganaburnu iskelesi': 'kaya'};
+const NAV_BOTTOM = {'Kerpe': 'kaya', 'Cebeci': 'kaya', 'Bağırganlı': 'kaya', 'Zarganaburnu iskelesi': 'kaya', 'Fenerbahçe Feneri': 'kaya',
+  'Garipçe': 'kaya', 'Poyrazköy': 'kaya', 'Rumelifeneri mendireği': 'kaya', 'Anadolu Feneri': 'kaya', 'Maryol balıkçı barınağı': 'kaya',
+  'Şile limanı & feneri': 'kaya', 'Güvercinlik (Şile)': 'kaya', 'Silivri sahili': 'kaya', 'Burgazada': 'kaya'};
 Object.assign(D_SEED, NAV_DEPTH);
 const seedDepthNote = n => NAV_DEPTH[n] ? `Navionics haritası · kıyı dibi · ~100 m'de ${NAV_DEPTH[n][1]} m` : D_SEED[n] ? `EMODnet · döküm (ilk 60 m)${D_SEED[n][1] != null ? ` · 100–150 m'de ${D_SEED[n][1]} m` : ''}` : null;
 
