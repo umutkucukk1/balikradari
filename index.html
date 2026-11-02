@@ -2237,6 +2237,19 @@ function denizOf(p){
   p._dzT = DENIZ.gen;
   return (p._dz = r);
 }
+// Global Fishing Watch: son haftanın (4 gün gecikmeli) balıkçı teknesi avcılık saatleri, 0,1° hücre. Merkezi 12 km içindeki
+// hücrelerin toplamı. Marmara'da AIS'li teknelerin çoğu gırgır; tekneler sürünün peşinden gider. İzmit Körfezi ve Boğaz içinde
+// gırgır yasak: orada tekne olmaması balık olmadığı anlamına gelmez, bu yüzden yalnız varlık artı sayılır.
+function gfwNear(p){
+  if (!DENIZ || !DENIZ.gfw || p.w !== 'deniz') return null;
+  if (p._gfwT === DENIZ.gen) return p._gfw;
+  const sum = w => { let h = 0, n = 0; for (const [la, lo, hh, vv] of (w && w.cells) || []) {
+    if (Math.hypot((la + 0.05 - p.lat) * 111, (lo + 0.05 - p.lng) * 85) <= 12) { h += hh; n += vv || 0; } } return {h: Math.round(h), n}; };
+  const [now, prev] = DENIZ.gfw, a = sum(now), b = sum(prev);
+  p._gfwT = DENIZ.gen;
+  return (p._gfw = {h: a.h, n: a.n, prev: b.h, from: now && now.from, to: now && now.to});
+}
+const GIRGIR_FISH = ['palamut', 'lufer', 'istavrit', 'kolyoz', 'uskumru'];
 
 // ---------- Klorofil (Copernicus Marine, uydu, bulut boşlukları doldurulmuş günlük ürün, 1 km) ----------
 // Açık WMTS servisinden nokta sorgusu (giriş gerektirmez, CORS açık). Veri 1–2 gün geriden gelir ve günde bir değişir.
@@ -2603,7 +2616,7 @@ function envAt(S, i){
     bottom: water === 'tuzlu' ? bottomOf(p) : null,
     cur, curRel, curDir: curM != null ? dv('cd') : mv('ocean_current_direction'),
     model: dz ? (dz.src === 'mrm' ? 'Copernicus Marmara modeli (500 m)' : 'Copernicus Karadeniz modeli (2,5 km)') + (dz.tb != null ? ' · uydu düzeltmeli' : '') : null,
-    sstModel: sstM != null, sal, salDrop, o2, kd,
+    sstModel: sstM != null, sal, salDrop, o2, kd, gfw: water === 'tuzlu' ? gfwNear(p) : null,
     chl: water === 'tuzlu' && p.chl ? p.chl.v : null,
     chlRise: water === 'tuzlu' && p.chl && p.chl.v7 ? p.chl.v / p.chl.v7 : null, chlDay: p.chl ? p.chl.t : null,
     // Kıyı noktalarında genel 6 m varsayımı yerine nokta tipine göre derinlik (mendirek 10, kumsal 4, ağız 3)
@@ -2821,6 +2834,10 @@ function scoreFish(f, e, spot){
         if (e.curRel >= 1.5 && e.cur >= 0.3) { s *= 1.06; why.push('akıntı olağandan güçlü – yem sürüklenir'); }
         else if (e.curRel <= 0.35) { s *= 0.95; why.push('akıntı durgun'); }
       } else if (kind === 'dip' && e.cur >= 2) { s *= 0.9; why.push('akıntı çok kuvvetli – dip takımı tutmaz'); }
+    }
+    // Yakında son hafta yoğun gırgır avı: sürü bölgede (GFW, 12 km). 25+ saat ×1,04, 100+ saat ×1,08
+    if (e.gfw && e.gfw.h >= 25 && GIRGIR_FISH.includes(f.id)) {
+      s *= e.gfw.h >= 100 ? 1.08 : 1.04; why.push(`son hafta yakında gırgır avı (${e.gfw.n} tekne, ${e.gfw.h} saat) – sürü bölgede`);
     }
     // Oksijen (Karadeniz modeli): yüzeyde 180 mmol/m³ altı nadirdir; olursa balık bölgeyi terk eder ya da durgunlaşır
     if (e.o2 != null && e.o2 < 180) { s *= 0.85; why.push(`oksijen düşük (${e.o2} mmol/m³)`); }
@@ -3312,7 +3329,7 @@ function welcome(){
     ${sourcesCard()}`;
 }
 function sourcesCard(){
-  return `<div class="card note"><b>Veri:</b> Hava — Open-Meteo · Deniz (dalga, su sıcaklığı, akıntı) — Open-Meteo Marine · Klorofil — Copernicus Marine (uydu) · Akıntı, su sıcaklığı, tuzluluk, oksijen — Copernicus Marmara (500 m) ve Karadeniz (2,5 km) modelleri · Derinlik — EMODnet ·
+  return `<div class="card note"><b>Veri:</b> Hava — Open-Meteo · Deniz (dalga, su sıcaklığı, akıntı) — Open-Meteo Marine · Klorofil — Copernicus Marine (uydu) · Akıntı, su sıcaklığı, tuzluluk, oksijen — Copernicus Marmara (500 m) ve Karadeniz (2,5 km) modelleri · Balıkçı teknesi avcılığı — Global Fishing Watch · Derinlik — EMODnet ·
     İl/ilçe sınırı — OpenStreetMap Nominatim · Ay/güneş — SunCalc.<br>
     <b>Nokta kaynakları:</b> <a href="https://istanbul.com/tr/blog/seasonal-picks/fishing-in-istanbul" target="_blank" rel="noopener">istanbul.com</a>,
     <a href="https://bolu.tarimorman.gov.tr/Sayfalar/Detay.aspx?SayfaId=78" target="_blank" rel="noopener">Bolu İl Tarım ve Orman</a>,
@@ -3451,6 +3468,7 @@ function renderDetail(){
     ${e.water === 'tuzlu' ? stat('Akıntı', e.cur != null ? `${e.cur.toFixed(1)} <small>km/s</small>` : '—', [e.curDir != null ? `${dirName(e.curDir)} yönüne` : '', e.curRel != null ? (e.curRel < 0.9 || e.curRel > 1.1 ? `olağanın ${e.curRel.toFixed(1).replace('.', ',')} katı` : 'olağan seviyede') : '', e.model ? 'Copernicus' : ''].filter(Boolean).join(' · ')) : ''}
     ${e.sal != null ? stat('Tuzluluk', `${e.sal.toFixed(1).replace('.', ',')} <small>‰</small>`, e.salDrop != null && e.salDrop >= 1.5 ? `olağandan ${e.salDrop.toFixed(1).replace('.', ',')} düşük – tatlı su girişi` : e.sal < 20 ? 'Karadeniz suyu (az tuzlu)' : 'Marmara/Akdeniz suyu') : ''}
     ${e.o2 != null ? stat('Oksijen', `${e.o2} <small>mmol/m³</small>`, e.o2 < 180 ? 'düşük' : 'yeterli') : ''}
+    ${e.gfw ? stat('Gırgır avı', e.gfw.h ? `${e.gfw.n} <small>tekne · ${e.gfw.h} sa</small>` : 'yok', `12 km içinde · ${e.gfw.from ? e.gfw.from.slice(8, 10) + '.' + e.gfw.from.slice(5, 7) + '–' + e.gfw.to.slice(8, 10) + '.' + e.gfw.to.slice(5, 7) : 'son hafta'}${e.gfw.prev || e.gfw.h ? ` · önceki hafta ${e.gfw.prev} sa` : ''} · Global Fishing Watch`) : ''}
     ${e.chl != null ? stat('Klorofil', `${e.chl.toFixed(1).replace('.', ',')} <small>mg/m³</small>`, [`uydu · ${e.chlDay.slice(8, 10)}.${e.chlDay.slice(5, 7)}`, e.chlRise != null ? `7 günde ×${e.chlRise.toFixed(1).replace('.', ',')}` : '', e.chl >= 8 ? 'çiçeklenme' : e.chl >= 3 ? 'bol plankton' : e.chl < 1 ? 'berrak, az plankton' : ''].filter(Boolean).join(' · ')) : ''}
     ${e.water === 'tuzlu' ? stat('Derinlik', `${e.depth < 10 ? e.depth.toFixed(1).replace('.0', '') : Math.round(e.depth)} m`, spot.dNote || seedDepthNote(spot.n) || (spot.custom ? 'EMODnet' : 'tahmini (mera tipinden)')) : ''}
     ${e.bottom ? stat('Dip', BOTTOM_TR[e.bottom.t], `tahmin · ${e.bottom.src}`) : ''}
