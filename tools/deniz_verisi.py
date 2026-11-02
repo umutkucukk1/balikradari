@@ -106,6 +106,42 @@ def load_mur():
     print(f'MUR uydu: {day} · {np.isfinite(grid).sum()} deniz hücresi', flush=True)
     return at, d0
 
+GFW = 'https://gateway.api.globalfishingwatch.org/v3/4wings/report'
+def load_gfw(token):
+    """Global Fishing Watch: gırgır (purse seine) teknelerinin AIS'ten çıkarılan avcılık saatleri, 0,1° ızgara.
+    Veri ~4 gün gecikmeli; iki hafta ayrı çekilir (son hafta / önceki hafta) ki sürünün yer değiştirmesi görülsün.
+    Tekne kimliği alınmaz, yalnız hücre toplamı."""
+    import io, zipfile, datetime as dt
+    poly = {'type': 'FeatureCollection', 'features': [{'type': 'Feature', 'properties': {}, 'geometry': {'type': 'Polygon',
+            'coordinates': [[[25.9, 39.9], [34.0, 39.9], [34.0, 42.3], [25.9, 42.3], [25.9, 39.9]]]}}]}
+    end = dt.date.today() - dt.timedelta(days=4)
+    weeks = [(end - dt.timedelta(days=7), end), (end - dt.timedelta(days=14), end - dt.timedelta(days=7))]
+    out = []
+    for a, b in weeks:
+        params = {'spatial-resolution': 'LOW', 'temporal-resolution': 'ENTIRE', 'group-by': 'GEARTYPE', 'format': 'JSON',
+                  'datasets[0]': 'public-global-fishing-effort:latest', 'date-range': f'{a},{b}', 'spatial-aggregation': 'false',
+                  'filters[0]': "geartype in ('purse_seines','other_purse_seines','tuna_purse_seines')"}
+        r = S.post(GFW, params=params, json={'geojson': json.dumps(poly)}, timeout=180,
+                   headers={'Authorization': f'Bearer {token}', 'Content-Language': 'en-EN'})
+        r.raise_for_status()
+        if r.content[:2] == b'PK':
+            z = zipfile.ZipFile(io.BytesIO(r.content)); data = json.loads(z.read(next(n for n in z.namelist() if n.endswith('.json'))))
+        else: data = r.json()
+        rows = []
+        def walk(x):
+            if isinstance(x, dict):
+                if 'lat' in x and 'lon' in x and 'hours' in x: rows.append(x)
+                else: [walk(v) for v in x.values()]
+            elif isinstance(x, list): [walk(v) for v in x]
+        walk(data)
+        cells = {}
+        for e in rows:
+            k = (round(float(e['lat']), 2), round(float(e['lon']), 2)); cells[k] = cells.get(k, 0) + float(e['hours'] or 0)
+        out.append({'from': str(a), 'to': str(b), 'cells': [[la, lo, round(h, 1)] for (la, lo), h in sorted(cells.items()) if h >= 0.5]})
+        tot = sum(h for _, _, h in out[-1]['cells']); top = sorted(out[-1]['cells'], key=lambda c: -c[2])[:5]
+        print(f'GFW {a}..{b}: {len(out[-1]["cells"])} hücre, {tot:.0f} avcılık saati, en yoğun: {top}', flush=True)
+    return out
+
 def spots_from(html):
     pat = re.compile(r"\{n:'((?:[^'\\]|\\.)*)'[^{}]*?w:'deniz'[^{}]*?lat:(-?[\d.]+), lng:(-?[\d.]+)")
     return [(m.group(1).replace("\\'", "'"), float(m.group(2)), float(m.group(3))) for m in pat.finditer(html)]
@@ -175,6 +211,10 @@ def main(src, dst):
     ints = lambda a: [None if not np.isfinite(x) else int(round(float(x))) for x in a]
     out = {'gen': time.strftime('%Y-%m-%dT%H:%MZ', time.gmtime()), 't0': int(T0), 'd0': int(day0), 'ds': used,
            's': {n: {k: (v if k in ('src', 'tb') else ints(v)) for k, v in r.items()} for n, r in res.items() if r}}
+    tok = __import__('os').environ.get('GFW_TOKEN')
+    if tok:
+        try: out['gfw'] = load_gfw(tok)
+        except Exception as ex: print('GFW alınamadı:', str(ex)[:300])
     with open(dst, 'w', encoding='utf-8') as f: json.dump(out, f, ensure_ascii=False, separators=(',', ':'))
     print(f'yazıldı: {dst} · {len(out["s"])} mera · {time.time() - t_start:.0f} sn')
 
