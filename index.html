@@ -4284,9 +4284,9 @@ async function scan(){
       grid = await cachedGrid(bounds, step, state.forceScan);
       state.forceScan = false;
       state.scanFrom = grid.at; state.scanFresh = grid.fresh; state.scanTotal = grid.total;
-      // Açık denizde (Karadeniz, açık Marmara/Ege) yalnız kıyıdan en fazla 1 km; kapalı ve dar sularda (İzmit Körfezi,
-      // İstanbul Boğazı) tamamı — körfezin ortası boş kalmasın
-      cells = grid.cells.filter(c => ['I', 'B'].includes(seaZone(c.lat, c.lng)) || (c.shore != null && c.shore <= SHORE_MAX));
+      // Karadeniz'de yalnız kıyıdan en fazla 1 km (açık Karadeniz kıyıdan avlanmaz); Marmara, körfezler (İzmit, Gemlik,
+      // Erdek…), Boğazlar ve Ege'de görünen suyun tamamı — Gemlik Körfezi'nin ortası boş kalıyordu
+      cells = grid.cells.filter(c => seaZone(c.lat, c.lng) !== 'K' || (c.shore != null && c.shore <= SHORE_MAX));
       // Hücrenin kara yönü: 2 hücre çevresindeki kafeste su olmayan (kara) komşuların ortalama yönü (satır kuzeye, sütun doğuya artar)
       const wet = new Set(grid.cells.map(c => c.r + ',' + c.c));
       cells.forEach(c => {
