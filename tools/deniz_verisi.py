@@ -97,7 +97,7 @@ def load_mur():
     grid = np.full((len(lats), len(lons)), np.nan, 'float32')
     grid[np.searchsorted(lats, rows[:, 0]), np.searchsorted(lons, rows[:, 1])] = rows[:, 2]
     t = np.datetime64(day.replace('Z', ''), 's').astype('int64'); d0 = t // 86400 * 86400
-    def at(la, lo, R=4):
+    def at(la, lo, R=10):   # kıyı hücreleri boş: Yarımca'da 4 km içinde ölçüm yoktu, 10 km'ye kadar aranır
         y0, x0 = int(np.abs(lats - la).argmin()), int(np.abs(lons - lo).argmin())
         for _, dy, dx in sorted((dy * dy + dx * dx, dy, dx) for dy in range(-R, R + 1) for dx in range(-R, R + 1)):
             y, x = y0 + dy, x0 + dx
