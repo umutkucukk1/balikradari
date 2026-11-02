@@ -120,16 +120,10 @@ def load_gfw(token):
     for a, b in weeks:
         base = {'spatial-resolution': 'LOW', 'temporal-resolution': 'ENTIRE', 'group-by': 'GEARTYPE', 'format': 'JSON',
                 'datasets[0]': 'public-global-fishing-effort:latest', 'date-range': f'{a},{b}'}
-        flt = {'filters[0]': "geartype in ('purse_seines','other_purse_seines','tuna_purse_seines')"}
-        geom = poly['features'][0]['geometry']
-        # Belgelerdeki gövde biçimi net değil: sırayla denenir, hata gövdesi kayda yazılır (anahtar yazılmaz)
-        tries = [(dict(base, **flt), {'geojson': poly}), (dict(base, **flt), {'geojson': geom}),
-                 (dict(base, **flt), {'geojson': json.dumps(poly)}), (base, {'geojson': poly})]
-        r = None
-        for k, (params, body) in enumerate(tries):
-            r = S.post(GFW, params=params, json=body, timeout=180, headers={'Authorization': f'Bearer {token}', 'Content-Language': 'en-EN'})
-            if r.ok: print(f'GFW biçim {k} çalıştı', flush=True); break
-            print(f'GFW biçim {k}: {r.status_code} {r.text[:400]}', flush=True)
+        # Tür filtresi yok: 2 Kas 2026 denemesinde GFW Marmara'daki hiçbir tekneyi "purse_seines" sınıflamadı; tekneler
+        # "trawlers"/"fishing" görünüyor. Marmara ve Boğaz'da trol yasak olduğundan bunlar çoğunlukla gırgır; toplam avcılık kullanılır.
+        r = S.post(GFW, params=base, json={'geojson': poly}, timeout=180, headers={'Authorization': f'Bearer {token}', 'Content-Language': 'en-EN'})
+        if not r.ok: print(f'GFW: {r.status_code} {r.text[:400]}', flush=True)
         r.raise_for_status()
         if r.content[:2] == b'PK':
             z = zipfile.ZipFile(io.BytesIO(r.content)); data = json.loads(z.read(next(n for n in z.namelist() if n.endswith('.json'))))
@@ -141,18 +135,15 @@ def load_gfw(token):
                 else: [walk(v) for v in x.values()]
             elif isinstance(x, list): [walk(v) for v in x]
         walk(data)
-        cells = {}
-        if rows: print('GFW örnek kayıt:', {k: v for k, v in rows[0].items() if k in ('lat', 'lon', 'hours', 'geartype', 'date')}, flush=True)
-        else:
-            print('GFW yanıtı (ilk 600):', json.dumps(data)[:600], flush=True)
-            # Karşılaştırma: filtresiz (tüm tekne türleri) aynı hafta
-            r2 = S.post(GFW, params=base, json={'geojson': poly}, timeout=180, headers={'Authorization': f'Bearer {token}', 'Content-Language': 'en-EN'})
-            print('GFW filtresiz:', r2.status_code, r2.text[:600], flush=True)
+        cells, vessels, gears = {}, {}, {}
         for e in rows:
-            if params is base and 'purse' not in str(e.get('geartype', '')).lower(): continue   # filtre kabul edilmediyse burada ayıkla
-            k = (round(float(e['lat']), 2), round(float(e['lon']), 2)); cells[k] = cells.get(k, 0) + float(e['hours'] or 0)
-        out.append({'from': str(a), 'to': str(b), 'cells': [[la, lo, round(h, 1)] for (la, lo), h in sorted(cells.items()) if h >= 0.5]})
-        tot = sum(h for _, _, h in out[-1]['cells']); top = sorted(out[-1]['cells'], key=lambda c: -c[2])[:5]
+            k = (round(float(e['lat']), 2), round(float(e['lon']), 2)); h = float(e['hours'] or 0)
+            cells[k] = cells.get(k, 0) + h; vessels[k] = vessels.get(k, 0) + int(e.get('vesselIDs') or 0)
+            g = e.get('geartype') or '?'; gears[g] = gears.get(g, 0) + h
+        print(f'GFW tür dağılımı (saat): { {g: round(h) for g, h in sorted(gears.items(), key=lambda x: -x[1])} }', flush=True)
+        # [enlem, boylam, avcılık saati, tekne sayısı]
+        out.append({'from': str(a), 'to': str(b), 'cells': [[la, lo, round(h, 1), vessels[(la, lo)]] for (la, lo), h in sorted(cells.items()) if h >= 0.5]})
+        tot = sum(c[2] for c in out[-1]['cells']); top = sorted(out[-1]['cells'], key=lambda c: -c[2])[:8]
         print(f'GFW {a}..{b}: {len(out[-1]["cells"])} hücre, {tot:.0f} avcılık saati, en yoğun: {top}', flush=True)
     return out
 
