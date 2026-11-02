@@ -1,0 +1,31 @@
+# Copernicus Marmara/Karadeniz deniz modellerinden meraların akıntı, su sıcaklığı, tuzluluk, oksijen ve bulanıklık
+# verisini çekip "veri" dalına deniz.json olarak yazar (dal her seferinde tek commit'le yenilenir, geçmiş birikmez).
+# Uygulama dosyayı raw.githubusercontent.com/umutkucukk1/balikradari/veri/deniz.json adresinden okur.
+name: Deniz verisi
+on:
+  schedule:
+    - cron: '20 5,17 * * *'   # 08:20 ve 20:20 (TSİ)
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  guncelle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install numpy numcodecs requests
+      - run: python tools/deniz_verisi.py index.html "$RUNNER_TEMP/deniz.json"
+      - name: veri dalına yaz
+        run: |
+          mkdir "$RUNNER_TEMP/veri" && cd "$RUNNER_TEMP/veri"
+          git init -q -b veri
+          cp "$RUNNER_TEMP/deniz.json" .
+          git config user.name "github-actions[bot]"
+          git config user.email "41898279+github-actions[bot]@users.noreply.github.com"
+          git add deniz.json
+          git commit -qm "Deniz verisi $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" veri
