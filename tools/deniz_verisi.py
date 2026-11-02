@@ -118,11 +118,18 @@ def load_gfw(token):
     weeks = [(end - dt.timedelta(days=7), end), (end - dt.timedelta(days=14), end - dt.timedelta(days=7))]
     out = []
     for a, b in weeks:
-        params = {'spatial-resolution': 'LOW', 'temporal-resolution': 'ENTIRE', 'group-by': 'GEARTYPE', 'format': 'JSON',
-                  'datasets[0]': 'public-global-fishing-effort:latest', 'date-range': f'{a},{b}', 'spatial-aggregation': 'false',
-                  'filters[0]': "geartype in ('purse_seines','other_purse_seines','tuna_purse_seines')"}
-        r = S.post(GFW, params=params, json={'geojson': json.dumps(poly)}, timeout=180,
-                   headers={'Authorization': f'Bearer {token}', 'Content-Language': 'en-EN'})
+        base = {'spatial-resolution': 'LOW', 'temporal-resolution': 'ENTIRE', 'group-by': 'GEARTYPE', 'format': 'JSON',
+                'datasets[0]': 'public-global-fishing-effort:latest', 'date-range': f'{a},{b}'}
+        flt = {'filters[0]': "geartype in ('purse_seines','other_purse_seines','tuna_purse_seines')"}
+        geom = poly['features'][0]['geometry']
+        # Belgelerdeki gövde biçimi net değil: sırayla denenir, hata gövdesi kayda yazılır (anahtar yazılmaz)
+        tries = [(dict(base, **flt), {'geojson': poly}), (dict(base, **flt), {'geojson': geom}),
+                 (dict(base, **flt), {'geojson': json.dumps(poly)}), (base, {'geojson': poly})]
+        r = None
+        for k, (params, body) in enumerate(tries):
+            r = S.post(GFW, params=params, json=body, timeout=180, headers={'Authorization': f'Bearer {token}', 'Content-Language': 'en-EN'})
+            if r.ok: print(f'GFW biçim {k} çalıştı', flush=True); break
+            print(f'GFW biçim {k}: {r.status_code} {r.text[:400]}', flush=True)
         r.raise_for_status()
         if r.content[:2] == b'PK':
             z = zipfile.ZipFile(io.BytesIO(r.content)); data = json.loads(z.read(next(n for n in z.namelist() if n.endswith('.json'))))
@@ -135,7 +142,9 @@ def load_gfw(token):
             elif isinstance(x, list): [walk(v) for v in x]
         walk(data)
         cells = {}
+        if rows: print('GFW örnek kayıt:', {k: v for k, v in rows[0].items() if k in ('lat', 'lon', 'hours', 'geartype', 'date')}, flush=True)
         for e in rows:
+            if params is base and 'purse' not in str(e.get('geartype', '')).lower(): continue   # filtre kabul edilmediyse burada ayıkla
             k = (round(float(e['lat']), 2), round(float(e['lon']), 2)); cells[k] = cells.get(k, 0) + float(e['hours'] or 0)
         out.append({'from': str(a), 'to': str(b), 'cells': [[la, lo, round(h, 1)] for (la, lo), h in sorted(cells.items()) if h >= 0.5]})
         tot = sum(h for _, _, h in out[-1]['cells']); top = sorted(out[-1]['cells'], key=lambda c: -c[2])[:5]
