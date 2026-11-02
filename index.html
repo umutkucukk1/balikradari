@@ -2251,6 +2251,17 @@ function gfwNear(p){
 }
 const GIRGIR_FISH = ['palamut', 'lufer', 'istavrit', 'kolyoz', 'uskumru'];
 
+// Meranın aydınlatması (OpenStreetMap, 150 m çevre, 2 Kas 2026 bir kez taranıp gömüldü; tools/isik_tara.py):
+// i = sokak lambası ya da aydınlatmalı yol/iskele etiketi var, k = aydınlatmasız etiketli. OSM'de Türkiye kıyılarında aydınlatma
+// az işaretli (150 meranın 34'ü): bilgi yoksa iskele/liman/mendirek "muhtemelen ışıklı", diğerleri "bilinmiyor" sayılır.
+const ISIK = {'Sarayburnu':'i', 'Galata Köprüsü':'i', 'Karaköy İskelesi':'i', 'Akıntıburnu (Arnavutköy)':'i', 'Bebek sahili':'i', 'Rumelihisarı':'i', 'Sarıyer İskelesi':'i', 'Moda Burnu':'i', 'Pendik sahili':'i', 'Tuzla (İçmeler–Aydınlı)':'i', 'Büyükada iskele çevresi':'i', 'Ağva (Göksu ağzı)':'i', 'Tekirdağ limanı sahili':'i', 'Şarköy sahili':'i', 'Enez sahili (Saros)':'k', 'Gelibolu limanı':'i', 'Çanakkale Kordonu':'i', 'Avşa Adası':'i', 'Değirmendere':'i', 'Karamürsel sahili':'i', 'Akçakoca limanı':'i', 'Filyos sahili':'k', 'Unkapanı (Atatürk) Köprüsü':'i', 'Aşiyan':'i', 'Yenikapı dolgu alanı':'i', 'Bostancı iskelesi':'i', 'Emirgan–İstinye sahili':'i', 'Büyükdere sahili':'i', 'Kumburgaz sahili':'i', 'Halıdere sahili':'i', 'Taş İskele (Bakırköy)':'i', 'Ahırkapı iskelesi':'i', 'Kanlıca–Çubuklu sahili':'i', 'Küçükkumla iskelesi':'i'};
+// 'isikli' | 'olasi' | 'karanlik' | null (bilinmiyor). Kıyıdan uzak tarama hücresi ışıksızdır.
+function lightOf(p){
+  if (!p.custom && ISIK[p.n]) return ISIK[p.n] === 'i' ? 'isikli' : 'karanlik';
+  if (p.custom) return p.shore != null && p.shore > 300 ? 'karanlik' : null;
+  return spotKind(p) === 'yapi' ? 'olasi' : null;
+}
+
 // ---------- Klorofil (Copernicus Marine, uydu, bulut boşlukları doldurulmuş günlük ürün, 1 km) ----------
 // Açık WMTS servisinden nokta sorgusu (giriş gerektirmez, CORS açık). Veri 1–2 gün geriden gelir ve günde bir değişir.
 // Kıyıya bitişik 1 km'lik hücreler boş döndüğü için kayıtlı merada 1,5 ve 3 km açığa (kara yönünün tersine) bakılır.
@@ -2558,6 +2569,9 @@ function envAt(S, i){
   const salDrop = sal != null && dz.saMed != null ? dz.saMed / 10 - sal : null;
   // Karadeniz biyokimya modeli (günlük): yüzey oksijeni (mmol/m³) ve ışık sönümlenmesi kd (1/m, yüksek = bulanık)
   const o2 = dv('o2', dk), kd = dv('kd', dk) != null ? dv('kd', dk) / 1000 : null;
+  // Akarsu debisi (GloFAS, günlük): 12 km içindeki en büyük dere/nehir. Olağanın 2+ katı = taşkın, ağızda su bulanır.
+  // Yağmurdan farkı: nehir taşkını yağmurdan 1–3 gün sonra zirve yapar ve günlerce sürer.
+  const river = dv('q', dk), riverRel = river != null && dz.qm ? river / dz.qm : null;
   const wtd = sst != null && sst24 != null ? sst - sst24 : null;
   const wt = water === 'tuzlu'
     ? (sst ?? clamp(airMean + 1.5, 5, 28))
@@ -2584,6 +2598,7 @@ function envAt(S, i){
   const turb = water === 'tuzlu'
     ? rain24 / 8 * rainW + (wave ?? 0) / 1.2 + (wind > 30 ? 0.4 : 0) + Math.max(0, onshore ?? 0) * 0.2
       + (salDrop != null && salDrop >= 1.5 ? 0.6 : 0) + (kd != null ? Math.max(0, (kd - 0.15) / 0.15) : 0)
+      + (riverRel != null && riverRel >= 2 && river >= 5 ? Math.min(1.2, (riverRel - 1) / 2.5) : 0)
     : rain24 / 6 * ((p.w === 'nehir' || p.w === 'dere') ? 2 : 1) + (wind > 30 ? 0.3 : 0);
   const mi = SunCalc.getMoonIllumination(new Date(epoch)), phase = mi.phase;
   // Gece ay ışığı (0 karanlık … 1 bulutsuz dolunay tepede): ay ufkun altındaysa ya da bulut kapatıyorsa karanlık
@@ -2615,8 +2630,8 @@ function envAt(S, i){
     sst, wt, wtd, wave, waveDir, waveOn, moonLight, wavePer:mv('wave_period'),
     bottom: water === 'tuzlu' ? bottomOf(p) : null,
     cur, curRel, curDir: curM != null ? dv('cd') : mv('ocean_current_direction'),
-    model: dz ? (dz.src === 'mrm' ? 'Copernicus Marmara modeli (500 m)' : 'Copernicus Karadeniz modeli (2,5 km)') + (dz.tb != null ? ' · uydu düzeltmeli' : '') : null,
-    sstModel: sstM != null, sal, salDrop, o2, kd, gfw: water === 'tuzlu' ? gfwNear(p) : null,
+    model: dz && dz.src ? (dz.src === 'mrm' ? 'Copernicus Marmara modeli (500 m)' : 'Copernicus Karadeniz modeli (2,5 km)') + (dz.tb != null ? ' · uydu düzeltmeli' : '') : null,
+    sstModel: sstM != null, sal, salDrop, o2, kd, river, riverRel, riverMed: dz ? dz.qm : null, light: water === 'tuzlu' ? lightOf(p) : null, gfw: water === 'tuzlu' ? gfwNear(p) : null,
     chl: water === 'tuzlu' && p.chl ? p.chl.v : null,
     chlRise: water === 'tuzlu' && p.chl && p.chl.v7 ? p.chl.v / p.chl.v7 : null, chlDay: p.chl ? p.chl.t : null,
     // Kıyı noktalarında genel 6 m varsayımı yerine nokta tipine göre derinlik (mendirek 10, kumsal 4, ağız 3)
@@ -2862,7 +2877,12 @@ function scoreFish(f, e, spot){
   // Gece ay ışığı: ışığa toplanan türler (istavrit, kalamar, mezgit) karanlık gecede iskele ve sokak ışığı altına yığılır;
   // parlak dolunayda tüm denize dağılır
   if (e.moonLight != null && LIGHT_FISH.includes(f.id)) {
-    if (e.moonLight < 0.15) { s *= 1.06; why.push('karanlık gece – ışıklı merada toplanır'); }
+    // Karanlık gecede sürü ışık altında toplanır: etkisi meranın aydınlatmasına bağlı
+    if (e.moonLight < 0.15) {
+      const k = {isikli:1.08, olasi:1.06, karanlik:1}[e.light] ?? 1.03;
+      if (k > 1) { s *= k; why.push(e.light === 'isikli' ? 'karanlık gece – ışıklı merada toplanır' : 'karanlık gece – ışık varsa altında toplanır'); }
+      else why.push('karanlık gece ama mera ışıksız');
+    }
     else if (e.moonLight > 0.6) { s *= 0.92; why.push('parlak ay ışığı – sürü dağılır'); }
   }
   // Dip yapısı: türün sevdiği dipte artı, sevmediğinde eksi; tahminin güvenine (w) göre ölçeklenir
@@ -3329,7 +3349,7 @@ function welcome(){
     ${sourcesCard()}`;
 }
 function sourcesCard(){
-  return `<div class="card note"><b>Veri:</b> Hava — Open-Meteo · Deniz (dalga, su sıcaklığı, akıntı) — Open-Meteo Marine · Klorofil — Copernicus Marine (uydu) · Akıntı, su sıcaklığı, tuzluluk, oksijen — Copernicus Marmara (500 m) ve Karadeniz (2,5 km) modelleri · Balıkçı teknesi avcılığı — Global Fishing Watch · Derinlik — EMODnet ·
+  return `<div class="card note"><b>Veri:</b> Hava — Open-Meteo · Deniz (dalga, su sıcaklığı, akıntı) — Open-Meteo Marine · Klorofil — Copernicus Marine (uydu) · Akıntı, su sıcaklığı, tuzluluk, oksijen — Copernicus Marmara (500 m) ve Karadeniz (2,5 km) modelleri · Balıkçı teknesi avcılığı — Global Fishing Watch · Akarsu debisi — GloFAS (Open-Meteo) · Derinlik — EMODnet ·
     İl/ilçe sınırı — OpenStreetMap Nominatim · Ay/güneş — SunCalc.<br>
     <b>Nokta kaynakları:</b> <a href="https://istanbul.com/tr/blog/seasonal-picks/fishing-in-istanbul" target="_blank" rel="noopener">istanbul.com</a>,
     <a href="https://bolu.tarimorman.gov.tr/Sayfalar/Detay.aspx?SayfaId=78" target="_blank" rel="noopener">Bolu İl Tarım ve Orman</a>,
@@ -3467,12 +3487,14 @@ function renderDetail(){
     ${e.water === 'tuzlu' ? stat('Dalga', e.wave != null ? `${e.wave.toFixed(1)} m` : '—', e.wavePer ? `${e.wavePer.toFixed(1)} sn · ${dirName(e.waveDir)}` : '') : ''}
     ${e.water === 'tuzlu' ? stat('Akıntı', e.cur != null ? `${e.cur.toFixed(1)} <small>km/s</small>` : '—', [e.curDir != null ? `${dirName(e.curDir)} yönüne` : '', e.curRel != null ? (e.curRel < 0.9 || e.curRel > 1.1 ? `olağanın ${e.curRel.toFixed(1).replace('.', ',')} katı` : 'olağan seviyede') : '', e.model ? 'Copernicus' : ''].filter(Boolean).join(' · ')) : ''}
     ${e.sal != null ? stat('Tuzluluk', `${e.sal.toFixed(1).replace('.', ',')} <small>‰</small>`, e.salDrop != null && e.salDrop >= 1.5 ? `olağandan ${e.salDrop.toFixed(1).replace('.', ',')} düşük – tatlı su girişi` : e.sal < 20 ? 'Karadeniz suyu (az tuzlu)' : 'Marmara/Akdeniz suyu') : ''}
+    ${e.light ? stat('Aydınlatma', {isikli:'Işıklı', olasi:'Muhtemelen ışıklı', karanlik:'Işıksız'}[e.light], e.light === 'olasi' ? 'iskele/liman · OSM\'de bilgi yok' : spot.custom ? 'açık deniz' : 'OpenStreetMap') : ''}
+    ${e.river != null ? stat('Akarsu', `${e.river < 10 ? e.river.toFixed(1).replace('.', ',') : Math.round(e.river)} <small>m³/s</small>`, `olağan ${String(e.riverMed).replace('.', ',')} · ${e.riverRel >= 2 && e.river >= 5 ? `taşkın (×${e.riverRel.toFixed(1).replace('.', ',')}) – ağızda su bulanık` : e.riverRel >= 1.3 ? 'olağandan yüksek' : 'normal'} · GloFAS`) : ''}
     ${e.o2 != null ? stat('Oksijen', `${e.o2} <small>mmol/m³</small>`, e.o2 < 180 ? 'düşük' : 'yeterli') : ''}
     ${e.gfw ? stat('Gırgır avı', e.gfw.h ? `${e.gfw.n} <small>tekne · ${e.gfw.h} sa</small>` : 'yok', `12 km içinde · ${e.gfw.from ? e.gfw.from.slice(8, 10) + '.' + e.gfw.from.slice(5, 7) + '–' + e.gfw.to.slice(8, 10) + '.' + e.gfw.to.slice(5, 7) : 'son hafta'}${e.gfw.prev || e.gfw.h ? ` · önceki hafta ${e.gfw.prev} sa` : ''} · Global Fishing Watch`) : ''}
     ${e.chl != null ? stat('Klorofil', `${e.chl.toFixed(1).replace('.', ',')} <small>mg/m³</small>`, [`uydu · ${e.chlDay.slice(8, 10)}.${e.chlDay.slice(5, 7)}`, e.chlRise != null ? `7 günde ×${e.chlRise.toFixed(1).replace('.', ',')}` : '', e.chl >= 8 ? 'çiçeklenme' : e.chl >= 3 ? 'bol plankton' : e.chl < 1 ? 'berrak, az plankton' : ''].filter(Boolean).join(' · ')) : ''}
     ${e.water === 'tuzlu' ? stat('Derinlik', `${e.depth < 10 ? e.depth.toFixed(1).replace('.0', '') : Math.round(e.depth)} m`, spot.dNote || seedDepthNote(spot.n) || (spot.custom ? 'EMODnet' : 'tahmini (mera tipinden)')) : ''}
     ${e.bottom ? stat('Dip', BOTTOM_TR[e.bottom.t], `tahmin · ${e.bottom.src}`) : ''}
-    ${stat('Su durumu', e.murky ? 'Bulanık' : 'Berrak', e.kd != null ? `model · ışık sönümü ${e.kd.toFixed(2).replace('.', ',')}/m` : e.salDrop != null && e.salDrop >= 1.5 ? 'tahmini · tatlı su girişi' : 'tahmini')}
+    ${stat('Su durumu', e.murky ? 'Bulanık' : 'Berrak', e.kd != null ? `model · ışık sönümü ${e.kd.toFixed(2).replace('.', ',')}/m` : e.riverRel >= 2 && e.river >= 5 ? 'tahmini · akarsu taşkını' : e.salDrop != null && e.salDrop >= 1.5 ? 'tahmini · tatlı su girişi' : 'tahmini')}
     ${stat('Işık', {day:'Gündüz', night:'Gece', twilight:'Alacakaranlık'}[e.period], `☀ ${hh(e.sunrise)} – ${hh(e.sunset)}`)}
   </div>
   <div class="tags">
