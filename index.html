@@ -2057,6 +2057,7 @@ async function fetchSeries(pts){
   const fresh = c => c && Date.now() - c.at < SERIES_TTL;
   // Kayıtlı/seçilen deniz noktalarının kara yönü (rüzgâr kıyıya mı esiyor); tarama hücreleri bunu kafesten alır
   try { await landBearings(pts.filter(p => !p.anchor)); } catch {}
+  try { await loadDeniz(); } catch {}
   // Klorofil en fazla 4 sn beklenir; yetişmeyen sorgular arka planda sürer ve sonraki çizimde önbellekten gelir
   // (çapa noktaları dahil: tarama hücreleri en yakın çapanın değerini kullanır)
   try { await Promise.race([chlFor(pts), new Promise(r => setTimeout(r, 4000))]); } catch {}
@@ -2200,6 +2201,43 @@ async function landBearings(pts){
     p.lb = vecBearing(x, y);
   });
 }
+// ---------- Deniz modeli (Copernicus Marine: Marmara 500 m, Karadeniz 2,5 km) ----------
+// GitHub'da günde iki kez çalışan tools/deniz_verisi.py, her mera için akıntı, su sıcaklığı, tuzluluk (saatlik) ve
+// Karadeniz'de oksijen ile bulanıklığı (günlük) deniz.json'a yazar. Open-Meteo'nun ~8 km'lik deniz verisine göre çok daha
+// ince: İzmit Körfezi'nde her mera ayrı, Boğaz akıntısı gerçeğe yakın. Dosya yoksa eski veriyle devam edilir.
+const DENIZ_URLS = ['https://raw.githubusercontent.com/umutkucukk1/balikradari/veri/deniz.json', 'deniz.json'];
+let DENIZ = null;
+async function loadDeniz(){
+  if (DENIZ !== null) return DENIZ;
+  const c = await idb.get('deniz');
+  if (c && Date.now() - c.at < 3 * 3600000) return (DENIZ = c.d);
+  for (const u of DENIZ_URLS) {
+    try {
+      const d = await fetch(u, {cache:'no-cache'}).then(r => r.ok ? r.json() : Promise.reject(r.status));
+      if (d && d.s) { idb.set('deniz', {at:Date.now(), d}); return (DENIZ = d); }
+    } catch {}
+  }
+  return (DENIZ = (c && c.d) || false);
+}
+const median = a => { const v = a.filter(x => x != null).sort((x, y) => x - y); return v.length ? v[v.length >> 1] : null; };
+// Meranın model serisi; tarama hücresi ya da eklenen nokta için aynı deniz bölgesindeki en yakın meranınki (8 km içinde)
+function denizOf(p){
+  if (!DENIZ || p.w !== 'deniz') return null;
+  if (p._dz !== undefined && p._dzT === DENIZ.gen) return p._dz;
+  let r = !p.custom && DENIZ.s[p.n] || null;
+  if (!r) {
+    const z = seaZone(p.lat, p.lng); let bd = 8;
+    for (const s of SPOTS) {
+      const m = s.w === 'deniz' && DENIZ.s[s.n]; if (!m) continue;
+      const d = Math.hypot((s.lat - p.lat) * 111, (s.lng - p.lng) * 85);
+      if (d < bd && seaZone(s.lat, s.lng) === z) { bd = d; r = m; }
+    }
+  }
+  if (r && r.cMed === undefined) { r.cMed = r.c ? median(r.c) : null; r.saMed = r.sa ? median(r.sa) : null; }
+  p._dzT = DENIZ.gen;
+  return (p._dz = r);
+}
+
 // ---------- Klorofil (Copernicus Marine, uydu, bulut boşlukları doldurulmuş günlük ürün, 1 km) ----------
 // Açık WMTS servisinden nokta sorgusu (giriş gerektirmez, CORS açık). Veri 1–2 gün geriden gelir ve günde bir değişir.
 // Kıyıya bitişik 1 km'lik hücreler boş döndüğü için kayıtlı merada 1,5 ve 3 km açığa (kara yönünün tersine) bakılır.
@@ -2493,9 +2531,20 @@ function envAt(S, i){
   let sum = 0, n = 0;
   for (let k = Math.max(0, i - 167); k <= i; k++) { sum += h.temperature_2m[k]; n++; }
   const airMean = sum / n;
-  const sst = mv('sea_surface_temperature');
+  // Copernicus deniz modeli (varsa): saat indeksi deniz.json'un başlangıcından (UTC saat başı)
+  const dz = water === 'tuzlu' ? denizOf(p) : null, t0h = parseLocal(time, S.off);
+  const hk = dz ? Math.round((t0h - DENIZ.t0 * 1000) / 3600000) : null, dk = dz ? Math.floor((t0h - DENIZ.d0 * 1000) / 86400000) : null;
+  const dv = (k, j = hk) => dz && dz[k] && j != null && j >= 0 && j < dz[k].length ? dz[k][j] : null;
+  const sstM = dv('t') != null ? dv('t') / 10 : null;
+  const sst = sstM ?? mv('sea_surface_temperature');
   // Su sıcaklığının 24 saatteki değişimi: ani soğuma (poyraz, soğuk su girişi) balığı durgunlaştırır
-  const sst24 = mh && mk != null && mk >= 24 && mh.sea_surface_temperature ? mh.sea_surface_temperature[mk - 24] : null;
+  const sst24 = sstM != null ? (dv('t', hk - 24) != null ? dv('t', hk - 24) / 10 : null)
+    : mh && mk != null && mk >= 24 && mh.sea_surface_temperature ? mh.sea_surface_temperature[mk - 24] : null;
+  // Tuzluluk: meranın 8 günlük olağanından belirgin düşüş = dere/nehir suyu girişi (su bulanık, tatlı su tabakası)
+  const sal = dv('sa') != null ? dv('sa') / 10 : null;
+  const salDrop = sal != null && dz.saMed != null ? dz.saMed / 10 - sal : null;
+  // Karadeniz biyokimya modeli (günlük): yüzey oksijeni (mmol/m³) ve ışık sönümlenmesi kd (1/m, yüksek = bulanık)
+  const o2 = dv('o2', dk), kd = dv('kd', dk) != null ? dv('kd', dk) / 1000 : null;
   const wtd = sst != null && sst24 != null ? sst - sst24 : null;
   const wt = water === 'tuzlu'
     ? (sst ?? clamp(airMean + 1.5, 5, 28))
@@ -2521,6 +2570,7 @@ function envAt(S, i){
   const rainW = (zone === 'B' ? 0.3 : zone === 'K' ? 0.6 : 1) * (p.d ? clamp(12 / p.d, 0.35, 1) : 1);
   const turb = water === 'tuzlu'
     ? rain24 / 8 * rainW + (wave ?? 0) / 1.2 + (wind > 30 ? 0.4 : 0) + Math.max(0, onshore ?? 0) * 0.2
+      + (salDrop != null && salDrop >= 1.5 ? 0.6 : 0) + (kd != null ? Math.max(0, (kd - 0.15) / 0.15) : 0)
     : rain24 / 6 * ((p.w === 'nehir' || p.w === 'dere') ? 2 : 1) + (wind > 30 ? 0.3 : 0);
   const mi = SunCalc.getMoonIllumination(new Date(epoch)), phase = mi.phase;
   // Gece ay ışığı (0 karanlık … 1 bulutsuz dolunay tepede): ay ufkun altındaysa ya da bulut kapatıyorsa karanlık
@@ -2532,12 +2582,15 @@ function envAt(S, i){
     ? Math.cos((waveDir - (p.lb + 180)) * Math.PI / 180) : null;
   // Akıntı: model ~8 km çözünürlükte, kıyıda mutlak değeri kaba (Boğaz'ı olduğundan zayıf, körfezi tek hücre gösterir).
   // Bu yüzden noktanın 8 günlük medyanına oranı kullanılır: "bugün akıntı olağanın 2 katı" bilgisi mutlak değerden güvenilir.
-  const cur = mv('ocean_current_velocity');
+  // Copernicus modeli varsa o kullanılır (Marmara 500 m: Boğaz ve körfez akıntısı ayrıntılı, cm/s → km/s)
+  const curM = dv('c') != null ? dv('c') * 0.036 : null;
+  const cur = curM ?? mv('ocean_current_velocity');
   if (S.curMed === undefined) {
     const v = ((mh && mh.ocean_current_velocity) || []).filter(x => x != null).sort((a, b) => a - b);
     S.curMed = v.length ? v[v.length >> 1] : null;
   }
-  const curRel = cur != null && S.curMed >= 0.15 ? cur / S.curMed : null;
+  const curMed = curM != null ? (dz.cMed != null ? dz.cMed * 0.036 : null) : S.curMed;
+  const curRel = cur != null && curMed >= 0.15 ? cur / curMed : null;
 
   return {
     i, time, epoch, water, hab:p.w, sea: water === 'tuzlu' ? detectSea(p.lat, p.lng) : null, zone,
@@ -2548,7 +2601,9 @@ function envAt(S, i){
     rain24, period, sunrise:D.sunrise[di], sunset:D.sunset[di],
     sst, wt, wtd, wave, waveDir, waveOn, moonLight, wavePer:mv('wave_period'),
     bottom: water === 'tuzlu' ? bottomOf(p) : null,
-    cur, curRel, curDir:mv('ocean_current_direction'),
+    cur, curRel, curDir: curM != null ? dv('cd') : mv('ocean_current_direction'),
+    model: dz ? (dz.src === 'mrm' ? 'Copernicus Marmara modeli (500 m)' : 'Copernicus Karadeniz modeli (2,5 km)') + (dz.tb != null ? ' · uydu düzeltmeli' : '') : null,
+    sstModel: sstM != null, sal, salDrop, o2, kd,
     chl: water === 'tuzlu' && p.chl ? p.chl.v : null,
     chlRise: water === 'tuzlu' && p.chl && p.chl.v7 ? p.chl.v / p.chl.v7 : null, chlDay: p.chl ? p.chl.t : null,
     // Kıyı noktalarında genel 6 m varsayımı yerine nokta tipine göre derinlik (mendirek 10, kumsal 4, ağız 3)
@@ -2767,6 +2822,8 @@ function scoreFish(f, e, spot){
         else if (e.curRel <= 0.35) { s *= 0.95; why.push('akıntı durgun'); }
       } else if (kind === 'dip' && e.cur >= 2) { s *= 0.9; why.push('akıntı çok kuvvetli – dip takımı tutmaz'); }
     }
+    // Oksijen (Karadeniz modeli): yüzeyde 180 mmol/m³ altı nadirdir; olursa balık bölgeyi terk eder ya da durgunlaşır
+    if (e.o2 != null && e.o2 < 180) { s *= 0.85; why.push(`oksijen düşük (${e.o2} mmol/m³)`); }
     // Klorofil (uydu, 1–2 gün önce): artan plankton yem balığını (hamsi, istavrit yavrusu) toplar, avcılar peşinden gelir.
     // Çok yüksek değer (8+ mg/m³) çiçeklenme demek: su bulanık, gece oksijen düşebilir; berrak su seven tür çekinir.
     // Günlük avla bağı dolaylı olduğundan etkisi küçük tutuldu (±%4–8).
@@ -3255,7 +3312,7 @@ function welcome(){
     ${sourcesCard()}`;
 }
 function sourcesCard(){
-  return `<div class="card note"><b>Veri:</b> Hava — Open-Meteo · Deniz (dalga, su sıcaklığı, akıntı) — Open-Meteo Marine · Klorofil — Copernicus Marine (uydu) · Derinlik — EMODnet ·
+  return `<div class="card note"><b>Veri:</b> Hava — Open-Meteo · Deniz (dalga, su sıcaklığı, akıntı) — Open-Meteo Marine · Klorofil — Copernicus Marine (uydu) · Akıntı, su sıcaklığı, tuzluluk, oksijen — Copernicus Marmara (500 m) ve Karadeniz (2,5 km) modelleri · Derinlik — EMODnet ·
     İl/ilçe sınırı — OpenStreetMap Nominatim · Ay/güneş — SunCalc.<br>
     <b>Nokta kaynakları:</b> <a href="https://istanbul.com/tr/blog/seasonal-picks/fishing-in-istanbul" target="_blank" rel="noopener">istanbul.com</a>,
     <a href="https://bolu.tarimorman.gov.tr/Sayfalar/Detay.aspx?SayfaId=78" target="_blank" rel="noopener">Bolu İl Tarım ve Orman</a>,
@@ -3389,13 +3446,15 @@ function renderDetail(){
     ${stat('Ay', `%${e.moonIll}`, moonName(e.moonPhase) + (e.moonLight != null ? (e.moonLight < 0.15 ? ' · gece karanlık' : e.moonLight > 0.6 ? ' · gece aydınlık' : '') : ''))}
   </div></div>
   <div class="card"><h2>Su</h2><div class="grid">
-    ${stat('Su sıcaklığı', `${e.wt.toFixed(1)}°C`, (e.water === 'tuzlu' && e.sst != null ? (S.mFrom ? `model · ${S.mFrom} km açıktan` : 'ölçüm/model') : 'tahmini') + (e.wtd != null && Math.abs(e.wtd) >= 0.3 ? ` · 24 sa: ${e.wtd > 0 ? '+' : ''}${e.wtd.toFixed(1)}°` : ''))}
+    ${stat('Su sıcaklığı', `${e.wt.toFixed(1)}°C`, (e.water === 'tuzlu' && e.sst != null ? (e.sstModel ? e.model : S.mFrom ? `model · ${S.mFrom} km açıktan` : 'ölçüm/model') : 'tahmini') + (e.wtd != null && Math.abs(e.wtd) >= 0.3 ? ` · 24 sa: ${e.wtd > 0 ? '+' : ''}${e.wtd.toFixed(1)}°` : ''))}
     ${e.water === 'tuzlu' ? stat('Dalga', e.wave != null ? `${e.wave.toFixed(1)} m` : '—', e.wavePer ? `${e.wavePer.toFixed(1)} sn · ${dirName(e.waveDir)}` : '') : ''}
-    ${e.water === 'tuzlu' ? stat('Akıntı', e.cur != null ? `${e.cur.toFixed(1)} <small>km/s</small>` : '—', [e.curDir != null ? `${dirName(e.curDir)} yönüne` : '', e.curRel != null ? (e.curRel < 0.9 || e.curRel > 1.1 ? `olağanın ${e.curRel.toFixed(1).replace('.', ',')} katı` : 'olağan seviyede') : ''].filter(Boolean).join(' · ')) : ''}
+    ${e.water === 'tuzlu' ? stat('Akıntı', e.cur != null ? `${e.cur.toFixed(1)} <small>km/s</small>` : '—', [e.curDir != null ? `${dirName(e.curDir)} yönüne` : '', e.curRel != null ? (e.curRel < 0.9 || e.curRel > 1.1 ? `olağanın ${e.curRel.toFixed(1).replace('.', ',')} katı` : 'olağan seviyede') : '', e.model ? 'Copernicus' : ''].filter(Boolean).join(' · ')) : ''}
+    ${e.sal != null ? stat('Tuzluluk', `${e.sal.toFixed(1).replace('.', ',')} <small>‰</small>`, e.salDrop != null && e.salDrop >= 1.5 ? `olağandan ${e.salDrop.toFixed(1).replace('.', ',')} düşük – tatlı su girişi` : e.sal < 20 ? 'Karadeniz suyu (az tuzlu)' : 'Marmara/Akdeniz suyu') : ''}
+    ${e.o2 != null ? stat('Oksijen', `${e.o2} <small>mmol/m³</small>`, e.o2 < 180 ? 'düşük' : 'yeterli') : ''}
     ${e.chl != null ? stat('Klorofil', `${e.chl.toFixed(1).replace('.', ',')} <small>mg/m³</small>`, [`uydu · ${e.chlDay.slice(8, 10)}.${e.chlDay.slice(5, 7)}`, e.chlRise != null ? `7 günde ×${e.chlRise.toFixed(1).replace('.', ',')}` : '', e.chl >= 8 ? 'çiçeklenme' : e.chl >= 3 ? 'bol plankton' : e.chl < 1 ? 'berrak, az plankton' : ''].filter(Boolean).join(' · ')) : ''}
     ${e.water === 'tuzlu' ? stat('Derinlik', `${e.depth < 10 ? e.depth.toFixed(1).replace('.0', '') : Math.round(e.depth)} m`, spot.dNote || seedDepthNote(spot.n) || (spot.custom ? 'EMODnet' : 'tahmini (mera tipinden)')) : ''}
     ${e.bottom ? stat('Dip', BOTTOM_TR[e.bottom.t], `tahmin · ${e.bottom.src}`) : ''}
-    ${stat('Su durumu', e.murky ? 'Bulanık' : 'Berrak', 'tahmini')}
+    ${stat('Su durumu', e.murky ? 'Bulanık' : 'Berrak', e.kd != null ? `model · ışık sönümü ${e.kd.toFixed(2).replace('.', ',')}/m` : e.salDrop != null && e.salDrop >= 1.5 ? 'tahmini · tatlı su girişi' : 'tahmini')}
     ${stat('Işık', {day:'Gündüz', night:'Gece', twilight:'Alacakaranlık'}[e.period], `☀ ${hh(e.sunrise)} – ${hh(e.sunset)}`)}
   </div>
   <div class="tags">
