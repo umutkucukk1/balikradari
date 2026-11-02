@@ -19,6 +19,8 @@ jobs:
           python-version: '3.12'
       - run: pip install numpy numcodecs requests
       - run: python tools/deniz_verisi.py index.html "$RUNNER_TEMP/deniz.json"
+        env:
+          GFW_TOKEN: ${{ secrets.GFW_TOKEN }}
       - name: veri dalına yaz
         run: |
           mkdir "$RUNNER_TEMP/veri" && cd "$RUNNER_TEMP/veri"
