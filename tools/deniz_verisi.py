@@ -184,7 +184,16 @@ def main(src, dst):
     hours = T0 + 3600 * np.arange(HOURS); day0 = T0 // 86400 * 86400; days = day0 + 86400 * np.arange(DAYS)
     res = {n: {} for n, _, _ in spots}; used = {}
     try: mur_at, mur_d0 = load_mur()
-    except Exception as ex: mur_at = None; print('MUR alınamadı:', ex)
+    except Exception as ex: mur_at = None; print('MUR alınamadı:', str(ex)[:200])
+    # Uydu servisi yanıt vermezse (GitHub sunucusundan ara sıra erişilemiyor) önceki çalıştırmanın düzeltmesi kullanılır:
+    # model–uydu farkı günden güne az değişir
+    prev_tb = {}
+    if not mur_at:
+        try:
+            prev = json.loads(get('https://raw.githubusercontent.com/umutkucukk1/balikradari/veri/deniz.json'))
+            prev_tb = {n: r['tb'] for n, r in prev.get('s', {}).items() if r.get('tb') is not None}
+            print(f'önceki uydu düzeltmesi kullanılıyor: {len(prev_tb)} mera', flush=True)
+        except Exception as ex: print('önceki veri alınamadı:', str(ex)[:200])
     def nearest_idx(z, targets, tol):
         idx = np.clip(np.searchsorted(z.time, targets), 1, len(z.time) - 1)
         idx = np.where(np.abs(z.time[idx - 1] - targets) < np.abs(z.time[idx] - targets), idx - 1, idx)
@@ -219,6 +228,8 @@ def main(src, dst):
                         bias = float(np.clip(m - md, -3, 3)) if m is not None and np.isfinite(md) else None
                         if bias is not None: out[0] = out[0] + bias
                         out.append(bias)
+                    elif name.endswith('_tem') and n in prev_tb:
+                        out[0] = out[0] + prev_tb[n]; out.append(prev_tb[n])
                     return n, out
             return n, None
         with cf.ThreadPoolExecutor(8) as ex:
