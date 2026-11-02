@@ -147,6 +147,32 @@ def load_gfw(token):
         print(f'GFW {a}..{b}: {len(out[-1]["cells"])} hücre, {tot:.0f} avcılık saati, en yoğun: {top}', flush=True)
     return out
 
+FLOOD = 'https://flood-api.open-meteo.com/v1/flood'
+def load_rivers(cells_file, day0, ndays):
+    """GloFAS akarsu debisi (Open-Meteo Flood API, 5 km, günlük). Merada en yakın hücre çoğu zaman rastgele küçük bir havzaya
+    düşüyor (Bebek'e 2,9 m³/s), Sakarya ise Karasu merasının 10 km batısında; bu yüzden her meranın 12 km içindeki en büyük
+    akarsu hücresi bir kez seçilip tools/akarsu.json'a yazıldı (akarsu_sec.py). Burada yalnız o hücreler sorulur.
+    Taşkın (olağanın 2+ katı) dere ağzında suyu bulandırır."""
+    import datetime as dt
+    sel = json.load(open(cells_file, encoding='utf-8'))
+    cells = sorted({(la, lo) for la, lo, _ in sel.values()}); series = {}
+    for k in range(0, len(cells), 50):
+        b = cells[k:k + 50]
+        data = json.loads(get(f'{FLOOD}?latitude={",".join(str(c[0]) for c in b)}&longitude={",".join(str(c[1]) for c in b)}'
+                              '&daily=river_discharge&past_days=31&forecast_days=8'))
+        for c, d in zip(b, data if isinstance(data, list) else [data]):
+            series[c] = dict(zip(d.get('daily', {}).get('time', []), d.get('daily', {}).get('river_discharge', [])))
+    today = dt.datetime.utcnow().date().isoformat(); best = {}
+    for n, (la, lo, _) in sel.items():
+        m = series.get((la, lo))
+        past = [x for t, x in (m or {}).items() if t < today and x is not None]
+        if len(past) >= 20: best[n] = (float(np.median(past)), m)
+    days = [time.strftime('%Y-%m-%d', time.gmtime(day0 + 86400 * i)) for i in range(ndays)]
+    out = {n: {'qm': round(med, 1), 'q': [None if m.get(d) is None else round(float(m[d]), 1) for d in days]} for n, (med, m) in best.items()}
+    print(f'Akarsu: {len(out)} merada 3+ m³/s akarsu · en büyükler: ' +
+          ', '.join(f'{n} {v["qm"]}' for n, v in sorted(out.items(), key=lambda x: -x[1]['qm'])[:6]), flush=True)
+    return out
+
 def spots_from(html):
     pat = re.compile(r"\{n:'((?:[^'\\]|\\.)*)'[^{}]*?w:'deniz'[^{}]*?lat:(-?[\d.]+), lng:(-?[\d.]+)")
     return [(m.group(1).replace("\\'", "'"), float(m.group(2)), float(m.group(3))) for m in pat.finditer(html)]
@@ -213,9 +239,14 @@ def main(src, dst):
             elif name == 'bgc_kd': r['kd'] = vals[0] * 1000
         print(f'{name}: {ds} · {hit}/{len(spots)} mera · {len(z.cache)} parça · {time.time() - t_start:.0f} sn', flush=True)
         z.cache.clear()
-    ints = lambda a: [None if not np.isfinite(x) else int(round(float(x))) for x in a]
+    try:
+        cf_ = __import__('os').path.join(__import__('os').path.dirname(__file__), 'akarsu.json')
+        for n, v in load_rivers(cf_, int(day0), DAYS).items():
+            if n in res: res[n].update(v)
+    except Exception as ex: print('Akarsu alınamadı:', str(ex)[:300])
+    ints = lambda a: [None if x is None or not np.isfinite(x) else int(round(float(x))) for x in a]
     out = {'gen': time.strftime('%Y-%m-%dT%H:%MZ', time.gmtime()), 't0': int(T0), 'd0': int(day0), 'ds': used,
-           's': {n: {k: (v if k in ('src', 'tb') else ints(v)) for k, v in r.items()} for n, r in res.items() if r}}
+           's': {n: {k: (v if k in ('src', 'tb', 'qm', 'q') else ints(v)) for k, v in r.items()} for n, r in res.items() if r}}
     tok = __import__('os').environ.get('GFW_TOKEN')
     if tok:
         try: out['gfw'] = load_gfw(tok)

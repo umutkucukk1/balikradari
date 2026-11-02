@@ -1,0 +1,902 @@
+{
+"Sarayburnu": {
+"lamba": 2,
+"lit": 3,
+"karanlik": 0,
+"iskele": false
+},
+"Galata Köprüsü": {
+"lamba": 0,
+"lit": 12,
+"karanlik": 0,
+"iskele": false
+},
+"Karaköy İskelesi": {
+"lamba": 0,
+"lit": 2,
+"karanlik": 0,
+"iskele": false
+},
+"Kabataş–Dolmabahçe": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Akıntıburnu (Arnavutköy)": {
+"lamba": 0,
+"lit": 6,
+"karanlik": 0,
+"iskele": false
+},
+"Bebek sahili": {
+"lamba": 0,
+"lit": 3,
+"karanlik": 0,
+"iskele": false
+},
+"Rumelihisarı": {
+"lamba": 0,
+"lit": 1,
+"karanlik": 0,
+"iskele": false
+},
+"Kireçburnu–Yeniköy": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Sarıyer İskelesi": {
+"lamba": 0,
+"lit": 1,
+"karanlik": 0,
+"iskele": false
+},
+"Rumeli Kavağı": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Rumelifeneri mendireği": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Kilyos sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Anadolu Kavağı": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Poyrazköy": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Anadolu Feneri": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Riva dere ağzı": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Beykoz sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Kuleli önü (Çengelköy)": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Kuzguncuk": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Salacak–Üsküdar": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Haydarpaşa mendireği": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Moda Burnu": {
+"lamba": 0,
+"lit": 10,
+"karanlik": 0,
+"iskele": false
+},
+"Fenerbahçe Feneri": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Caddebostan sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Maltepe dolgu alanı": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Kartal sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Pendik sahili": {
+"lamba": 0,
+"lit": 2,
+"karanlik": 0,
+"iskele": false
+},
+"Tuzla (İçmeler–Aydınlı)": {
+"lamba": 0,
+"lit": 1,
+"karanlik": 0,
+"iskele": false
+},
+"Büyükada iskele çevresi": {
+"lamba": 0,
+"lit": 1,
+"karanlik": 0,
+"iskele": false
+},
+"Burgazada": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Ataköy sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Yeşilköy–Florya sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Avcılar–Ambarlı sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Büyükçekmece sahil": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Silivri sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Şile limanı & feneri": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Ağva (Göksu ağzı)": {
+"lamba": 0,
+"lit": 4,
+"karanlik": 0,
+"iskele": false
+},
+"Tekirdağ limanı sahili": {
+"lamba": 0,
+"lit": 1,
+"karanlik": 0,
+"iskele": true
+},
+"Kumbağ": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Mürefte": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Şarköy sahili": {
+"lamba": 0,
+"lit": 1,
+"karanlik": 0,
+"iskele": false
+},
+"Marmara Ereğlisi": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"İğneada limanı": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Kıyıköy (Pabuçdere/Kazandere ağzı)": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Enez sahili (Saros)": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 1,
+"iskele": false
+},
+"Erikli (Saros)": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Gelibolu limanı": {
+"lamba": 0,
+"lit": 1,
+"karanlik": 0,
+"iskele": false
+},
+"Lapseki sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Çanakkale Kordonu": {
+"lamba": 0,
+"lit": 4,
+"karanlik": 0,
+"iskele": false
+},
+"Kilitbahir": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Karabiga": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Erdek sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Ocaklar (Kapıdağ)": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Bandırma limanı": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Marmara Adası (Saraylar)": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Avşa Adası": {
+"lamba": 0,
+"lit": 5,
+"karanlik": 0,
+"iskele": false
+},
+"Mudanya iskelesi": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Tirilye (Zeytinbağı)": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Gemlik sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Kurşunlu": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Yalova sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Çınarcık sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Esenköy": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Armutlu": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Hersek Lagünü": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Darıca–Eskihisar": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Hereke sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"İzmit Sekapark sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Değirmendere": {
+"lamba": 0,
+"lit": 1,
+"karanlik": 0,
+"iskele": false
+},
+"Karamürsel sahili": {
+"lamba": 0,
+"lit": 2,
+"karanlik": 0,
+"iskele": false
+},
+"Kerpe": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Kefken": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Cebeci": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Karasu limanı & sahil": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Sakarya Nehri ağzı": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Kocaali sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Akçakoca limanı": {
+"lamba": 0,
+"lit": 1,
+"karanlik": 0,
+"iskele": false
+},
+"Melen Çayı ağzı": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Ereğli sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Alaplı": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Zonguldak limanı": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Kozlu": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Filyos sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 1,
+"iskele": false
+},
+"Amasra limanları": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"İnkumu": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Kurucaşile": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Cide limanı": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Doğanyurt": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"İnebolu limanı": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Abana sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Dragos sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Güzelyalı sahili (Tuzla/Pendik)": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Unkapanı (Atatürk) Köprüsü": {
+"lamba": 0,
+"lit": 5,
+"karanlik": 0,
+"iskele": false
+},
+"Aşiyan": {
+"lamba": 0,
+"lit": 2,
+"karanlik": 0,
+"iskele": false
+},
+"Kefeliköy": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Tarabya koyu": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Kandilli sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Yenikapı dolgu alanı": {
+"lamba": 0,
+"lit": 24,
+"karanlik": 0,
+"iskele": false
+},
+"Bostancı iskelesi": {
+"lamba": 0,
+"lit": 1,
+"karanlik": 1,
+"iskele": false
+},
+"Kalamış koyu": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Emirgan–İstinye sahili": {
+"lamba": 0,
+"lit": 1,
+"karanlik": 0,
+"iskele": false
+},
+"Büyükdere sahili": {
+"lamba": 0,
+"lit": 2,
+"karanlik": 0,
+"iskele": false
+},
+"Garipçe": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Kumköy (Kilyos)": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Menekşe sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Kumburgaz sahili": {
+"lamba": 0,
+"lit": 1,
+"karanlik": 0,
+"iskele": false
+},
+"Selimpaşa sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Yarımca sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Kirazlıyalı": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Tavşancıl sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Halıdere sahili": {
+"lamba": 0,
+"lit": 1,
+"karanlik": 0,
+"iskele": false
+},
+"Kumcağız": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Bağırganlı": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Kilimli limanı": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Gideros koyu": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Barbaros sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Hoşköy": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Sultanköy": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Kepez sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Güzelyalı (Çanakkale)": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Çardak sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Narlı (Erdek)": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Kumyaka": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Güzelyalı (Mudanya)": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Eşkel": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Kaytazdere": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Çiftlikköy sahili": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Teşvikiye (Çınarcık)": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Taş İskele (Bakırköy)": {
+"lamba": 0,
+"lit": 5,
+"karanlik": 0,
+"iskele": false
+},
+"İdealtepe burnu": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Ahırkapı iskelesi": {
+"lamba": 0,
+"lit": 18,
+"karanlik": 0,
+"iskele": false
+},
+"Küçükyalı mendireği": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Büyükçekmece balık tutma noktası": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Beylerbeyi iskelesi": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Kanlıca–Çubuklu sahili": {
+"lamba": 0,
+"lit": 1,
+"karanlik": 0,
+"iskele": false
+},
+"Maryol balıkçı barınağı": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Güvercinlik (Şile)": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Sultaniçe limanı (Enez)": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"İsmail Nuri balık tutma iskelesi (Gökçeada)": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Odunluk iskelesi": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Cunda iskelesi": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Cavit Çağlar iskelesi": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Can iskelesi": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Küçükkumla iskelesi": {
+"lamba": 0,
+"lit": 1,
+"karanlik": 0,
+"iskele": true
+},
+"Armutlu iskelesi": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Tütünçiftlik iskelesi": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Zarganaburnu iskelesi": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Darıca balıkçı barınağı": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"Panayır İskelesi koyu": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+},
+"İğneada Feneri": {
+"lamba": 0,
+"lit": 0,
+"karanlik": 0,
+"iskele": false
+}
+}
