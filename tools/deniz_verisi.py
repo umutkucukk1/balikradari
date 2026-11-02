@@ -143,6 +143,11 @@ def load_gfw(token):
         walk(data)
         cells = {}
         if rows: print('GFW örnek kayıt:', {k: v for k, v in rows[0].items() if k in ('lat', 'lon', 'hours', 'geartype', 'date')}, flush=True)
+        else:
+            print('GFW yanıtı (ilk 600):', json.dumps(data)[:600], flush=True)
+            # Karşılaştırma: filtresiz (tüm tekne türleri) aynı hafta
+            r2 = S.post(GFW, params=base, json={'geojson': poly}, timeout=180, headers={'Authorization': f'Bearer {token}', 'Content-Language': 'en-EN'})
+            print('GFW filtresiz:', r2.status_code, r2.text[:600], flush=True)
         for e in rows:
             if params is base and 'purse' not in str(e.get('geartype', '')).lower(): continue   # filtre kabul edilmediyse burada ayıkla
             k = (round(float(e['lat']), 2), round(float(e['lon']), 2)); cells[k] = cells.get(k, 0) + float(e['hours'] or 0)
