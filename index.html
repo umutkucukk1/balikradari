@@ -2058,6 +2058,7 @@ async function fetchSeries(pts){
   // Kayıtlı/seçilen deniz noktalarının kara yönü (rüzgâr kıyıya mı esiyor); tarama hücreleri bunu kafesten alır
   try { await landBearings(pts.filter(p => !p.anchor)); } catch {}
   try { await loadDeniz(); } catch {}
+  try { await loadRaporlar(); } catch {}
   // Klorofil en fazla 4 sn beklenir; yetişmeyen sorgular arka planda sürer ve sonraki çizimde önbellekten gelir
   // (çapa noktaları dahil: tarama hücreleri en yakın çapanın değerini kullanır)
   try { await Promise.race([chlFor(pts), new Promise(r => setTimeout(r, 4000))]); } catch {}
@@ -2250,6 +2251,35 @@ function gfwNear(p){
   return (p._gfw = {h: a.h, n: a.n, prev: b.h, from: now && now.from, to: now && now.to});
 }
 const GIRGIR_FISH = ['palamut', 'lufer', 'istavrit', 'kolyoz', 'uskumru'];
+
+// ---------- Av raporları (balıkçı sayfalarından günlük derlenen gerçek av kayıtları, av_raporlari.json) ----------
+// Hiçbir veri kaynağı "balık bugün burada mı" sorusuna cevap vermiyor; yakın zamanda tutulan av veriyor. Rapor yalnız
+// sonraki saatleri etkiler (geriye dönük değil): aynı merada "bol" +%10, "var" +%6; 10 km içindeki aynı deniz bölgesindeki
+// meralarda bunun %60'ı; 72 saatte doğrusal söner. "Bekleyiş"/"yok" ceza değildir (sürü her an gelebilir), yalnız kayıttır.
+let RAPOR = null;
+async function loadRaporlar(){
+  if (RAPOR !== null) return RAPOR;
+  let a = [];
+  try { a = await fetch('av_raporlari.json', {cache:'no-cache'}).then(r => r.ok ? r.json() : []); } catch {}
+  RAPOR = (Array.isArray(a) ? a : []).map(r => ({...r, at: Date.parse(r.t + ':00+03:00'), sp: SPOTS.find(s => s.n === r.mera)}))
+    .filter(r => r.sp && !isNaN(r.at));
+  return RAPOR;
+}
+function raporFor(p, fid, epoch){
+  if (!RAPOR || !RAPOR.length || p.w !== 'deniz') return null;
+  let best = null;
+  for (const r of RAPOR) {
+    if (r.tur !== fid || (r.sonuc !== 'bol' && r.sonuc !== 'var')) continue;
+    const age = (epoch - r.at) / 3600000;
+    if (age < 0 || age > 72) continue;
+    const same = !p.custom && r.mera === p.n;
+    const d = same ? 0 : Math.hypot((r.sp.lat - p.lat) * 111, (r.sp.lng - p.lng) * 85);
+    if (!same && (d > 10 || seaZone(r.sp.lat, r.sp.lng) !== seaZone(p.lat, p.lng))) continue;
+    const k = (r.sonuc === 'bol' ? 0.10 : 0.06) * (same ? 1 : 0.6) * (1 - age / 72);
+    if (!best || k > best.k) best = {k, r, age, d};
+  }
+  return best;
+}
 
 // Meranın aydınlatması (OpenStreetMap, 150 m çevre, 2 Kas 2026 bir kez taranıp gömüldü; tools/isik_tara.py):
 // i = sokak lambası ya da aydınlatmalı yol/iskele etiketi var, k = aydınlatmasız etiketli. OSM'de Türkiye kıyılarında aydınlatma
@@ -2802,7 +2832,8 @@ function scoreFish(f, e, spot){
 
   // Yüzey avcıları (palamut, lüfer, kolyoz) karanlıkta ve alacakaranlıkta yem sürüsünü kıyıya sıkıştırır: 4 m'lik sakin
   // suda da avlanır (Yarımca, 1 Kas sabahı: çarşaf denizde kıyı dibinde torik). Bu saatlerde sığ ve durgun su cezası kalkar.
-  const hunt = HUNTERS.includes(f.id) && e.period !== 'day';
+  // Kapalı havada (bulut %70+) ya da bulanık suda gündüz de sürer: 1 Kas'ta %95–100 bulutta torik öğlene kadar kıyıdaydı.
+  const hunt = HUNTERS.includes(f.id) && (e.period !== 'day' || e.cloud >= 70 || e.murky);
   if (f.water === 'tuzlu') {
     if (e.depth != null) {
       // f.d = yaşayabildiği aralık, DOPT = en çok bulunduğu (ideal) derinlik bandı
@@ -2853,6 +2884,13 @@ function scoreFish(f, e, spot){
     // Yakında son hafta yoğun gırgır avı: sürü bölgede (GFW, 12 km). 25+ saat ×1,04, 100+ saat ×1,08
     if (e.gfw && e.gfw.h >= 25 && GIRGIR_FISH.includes(f.id)) {
       s *= e.gfw.h >= 100 ? 1.08 : 1.04; why.push(`son hafta yakında gırgır avı (${e.gfw.n} tekne, ${e.gfw.h} saat) – sürü bölgede`);
+    }
+    // Yakın zamanda bu merada (ya da 10 km içinde) bu tür tutuldu
+    const rp = raporFor(spot, f.id, e.epoch);
+    if (rp) {
+      s *= 1 + rp.k;
+      const when = rp.age < 24 ? `${Math.max(1, Math.round(rp.age))} sa önce` : `${Math.round(rp.age / 24)} gün önce`;
+      why.push(`son av raporu: ${rp.d ? Math.round(rp.d) + ' km ötede ' + rp.r.mera + ', ' : ''}${rp.r.sonuc === 'bol' ? 'bol' : 'tutuldu'} (${when})`);
     }
     // Oksijen (Karadeniz modeli): yüzeyde 180 mmol/m³ altı nadirdir; olursa balık bölgeyi terk eder ya da durgunlaşır
     if (e.o2 != null && e.o2 < 180) { s *= 0.85; why.push(`oksijen düşük (${e.o2} mmol/m³)`); }
