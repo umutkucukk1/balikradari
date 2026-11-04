@@ -1,5 +1,11 @@
 [
   {"t": "2026-11-01T07:30", "mera": "Yarımca sahili", "tur": "palamut", "sonuc": "bol", "not": "torik; lüfere gelenler torikle döndü, maket işe yaradı", "kaynak": "Instagram (Yarımca balıkçı sayfası)"},
   {"t": "2026-11-01T10:00", "mera": "Yarımca sahili", "tur": "palamut", "sonuc": "var", "not": "torik; öğleye kadar kalabalık, kapalı hava", "kaynak": "Instagram (Yarımca balıkçı sayfası)"},
-  {"t": "2026-11-02T06:30", "mera": "Yarımca sahili", "tur": "palamut", "sonuc": "bekleyis", "not": "torik için kalabalık, av görülmedi", "kaynak": "Instagram (Yarımca balıkçı sayfası)"}
+  {"t": "2026-11-01T10:00", "mera": "Yarımca sahili", "tur": "lufer", "sonuc": "var", "not": "sarıkanat–çinekop hareketliliği", "kaynak": "Facebook"},
+  {"t": "2026-11-02T06:30", "mera": "Yarımca sahili", "tur": "palamut", "sonuc": "bekleyis", "not": "torik için kalabalık, av görülmedi", "kaynak": "Instagram (Yarımca balıkçı sayfası)"},
+  {"t": "2026-11-03T06:30", "mera": "Yarımca sahili", "tur": "lufer", "sonuc": "var", "not": "sabah 6 balık ufaktan başladı (lüfer, çinekop)", "kaynak": "Instagram (Yarımca balıkçı sayfası)"},
+  {"t": "2026-11-03T06:30", "mera": "Yarımca sahili", "tur": "palamut", "sonuc": "var", "not": "sabah 6 balık ufaktan başladı (torik)", "kaynak": "Instagram (Yarımca balıkçı sayfası)"},
+  {"t": "2026-11-03T21:00", "mera": "Karamürsel sahili", "tur": "lufer", "sonuc": "var", "not": "Karamürsel sahil hareketli", "kaynak": "Instagram (Karamürsel olta malzemecisi)"},
+  {"t": "2026-11-03T21:00", "mera": "İzmit Sekapark sahili", "tur": "istavrit", "sonuc": "var", "not": "LRF ile istavrit", "kaynak": "Instagram (İzmit LRF sayfası)"},
+  {"t": "2026-11-03T21:00", "mera": "İzmit Sekapark sahili", "tur": "lufer", "sonuc": "var", "not": "LRF ile lüfer", "kaynak": "Instagram (İzmit LRF sayfası)"}
 ]
