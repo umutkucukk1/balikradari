@@ -7,7 +7,7 @@ Her deniz merası (index.html'deki SPOTS) için 1 gün geçmiş + ~7 gün tahmin
   * Karadeniz biyokimya modeli (2,5 km, günlük): oksijen, ışık sönümlenmesi (bulanıklık, kd)
 Kullanım: python tools/deniz_verisi.py index.html deniz.json
 """
-import json, re, sys, time, threading, concurrent.futures as cf
+import json, os, re, sys, time, threading, concurrent.futures as cf
 import numpy as np, numcodecs, requests
 
 STAC = 'https://stac.marine.copernicus.eu/metadata'
@@ -37,15 +37,19 @@ def get(url, ok404=False):
             if k == 3: raise
             time.sleep(2 + 3 * k)
 
-def dataset_href(product, pattern):
-    """Ürünün en yeni, ARCO'su (geoChunked) yayınlanmış sürümü"""
+def dataset_versions(product, pattern, limit=2):
+    """Ürünün ARCO'su (geoChunked) yayınlanmış sürümleri, en yeniden eskiye. Yeni sürüm yayınlanınca değerleri bir süre boş
+    gelebiliyor (Kasım 2026: Karadeniz sıcaklığı 202611'de boş, 202511'de dolu), bu yüzden tek sürüme güvenilmez."""
     links = json.loads(get(f'{STAC}/{product}/product.stac.json'))['links']
     ids = sorted({m.group(0) for l in links if l.get('rel') == 'item' for m in [re.search(pattern, l['href'])] if m},
                  key=lambda s: s[-6:], reverse=True)
+    out = []
     for ds in ids:
         a = json.loads(get(f'{STAC}/{product}/{ds}/dataset.stac.json')).get('assets', {})
-        if 'geoChunked' in a: return ds, a['geoChunked']['href']
-    raise RuntimeError(f'ARCO yok: {pattern}')
+        if 'geoChunked' in a: out.append((ds, a['geoChunked']['href']))
+        if len(out) == limit: break
+    if not out: raise RuntimeError(f'ARCO yok: {pattern}')
+    return out
 
 UNIT = {'seconds': 1, 'minutes': 60, 'hours': 3600, 'days': 86400}
 class Zarr:
@@ -86,24 +90,30 @@ class Zarr:
             out[lo - ti0:hi - ti0] = sub
         return out
 
-MUR = 'https://upwell.pfeg.noaa.gov/erddap/griddap/jplMURSST41'
-def load_mur():
-    """NASA MUR uydu su sıcaklığı (1 km, günlük, ~3-4 gün gecikmeli): modelin seviye sapmasını düzeltmek için.
+# Uydu su sıcaklığı, sırayla denenir: (ad, adres, arama yarıçapı [hücre]; ~10 km). GitHub sunucusundan upwell'e erişilemediği görüldü.
+SST_SOURCES = [
+    ('NASA MUR (upwell)', 'https://upwell.pfeg.noaa.gov/erddap/griddap/jplMURSST41', 10),
+    ('NASA MUR (coastwatch)', 'https://coastwatch.pfeg.noaa.gov/erddap/griddap/jplMURSST41', 10),
+    ('NOAA Blended', 'https://coastwatch.noaa.gov/erddap/griddap/noaacwBLENDEDCsstDaily', 2),
+]
+def load_sst(name, base, R):
+    """Uydu su sıcaklığı (günlük, ~3-4 gün gecikmeli): modelin seviye sapmasını düzeltmek için.
     29 Eki 2026 kıyası: Marmara modeli İzmit Körfezi'ni uydudan ~2°C soğuk, Boğaz/Şile'yi ±0,5°C doğru gösteriyor."""
-    das = get(MUR + '.das').decode('latin-1'); day = re.search(r'time_coverage_end "([^"]+)"', das).group(1)
-    csv = get(f'{MUR}.csv?analysed_sst%5B({day})%5D%5B(39.4):(42.3)%5D%5B(25.0):(34.0)%5D').decode().splitlines()[2:]
+    r = S.get(base + '.das', timeout=30); r.raise_for_status()   # erişilemeyen sunucuda uzun beklenmez
+    day = re.search(r'time_coverage_end "([^"]+)"', r.content.decode('latin-1')).group(1)
+    csv = get(f'{base}.csv?analysed_sst%5B({day})%5D%5B(39.4):(42.3)%5D%5B(25.0):(34.0)%5D').decode().splitlines()[2:]
     rows = np.array([[float(x) if x != 'NaN' else np.nan for x in r.split(',')[1:4]] for r in csv if r])
     lats, lons = np.unique(rows[:, 0]), np.unique(rows[:, 1])
     grid = np.full((len(lats), len(lons)), np.nan, 'float32')
     grid[np.searchsorted(lats, rows[:, 0]), np.searchsorted(lons, rows[:, 1])] = rows[:, 2]
     t = np.datetime64(day.replace('Z', ''), 's').astype('int64'); d0 = t // 86400 * 86400
-    def at(la, lo, R=10):   # kıyı hücreleri boş: Yarımca'da 4 km içinde ölçüm yoktu, 10 km'ye kadar aranır
+    def at(la, lo):   # kıyı hücreleri boş: Yarımca'da 4 km içinde ölçüm yoktu, ~10 km'ye kadar aranır
         y0, x0 = int(np.abs(lats - la).argmin()), int(np.abs(lons - lo).argmin())
         for _, dy, dx in sorted((dy * dy + dx * dx, dy, dx) for dy in range(-R, R + 1) for dx in range(-R, R + 1)):
             y, x = y0 + dy, x0 + dx
             if 0 <= y < len(lats) and 0 <= x < len(lons) and np.isfinite(grid[y, x]): return float(grid[y, x])
         return None
-    print(f'MUR uydu: {day} · {np.isfinite(grid).sum()} deniz hücresi', flush=True)
+    print(f'Uydu sıcaklığı: {name} · {day} · {np.isfinite(grid).sum()} deniz hücresi', flush=True)
     return at, d0
 
 GFW = 'https://gateway.api.globalfishingwatch.org/v3/4wings/report'
@@ -183,27 +193,32 @@ def main(src, dst):
     now = int(time.time()) // 3600 * 3600; T0 = now - 24 * 3600
     hours = T0 + 3600 * np.arange(HOURS); day0 = T0 // 86400 * 86400; days = day0 + 86400 * np.arange(DAYS)
     res = {n: {} for n, _, _ in spots}; used = {}
-    try: mur_at, mur_d0 = load_mur()
-    except Exception as ex: mur_at = None; print('MUR alınamadı:', str(ex)[:200])
-    # Uydu servisi yanıt vermezse (GitHub sunucusundan ara sıra erişilemiyor) önceki çalıştırmanın düzeltmesi kullanılır:
-    # model–uydu farkı günden güne az değişir
+    mur_at = None
+    for sname, sbase, sR in SST_SOURCES:
+        try: mur_at, mur_d0 = load_sst(sname, sbase, sR); break
+        except Exception as ex: print(f'{sname} alınamadı:', str(ex)[:200], flush=True)
+    # Hiçbir uydu kaynağı yanıt vermezse önceki çalıştırmanın düzeltmesi, o da yoksa depodaki kalıcı yedek (tools/sst_bias.json)
+    # kullanılır: model–uydu farkı günden güne az değişir. Bir çalıştırmanın boş sonucu sonrakileri de boş bırakmasın diye.
     prev_tb = {}
     if not mur_at:
         try:
             prev = json.loads(get('https://raw.githubusercontent.com/umutkucukk1/balikradari/veri/deniz.json'))
             prev_tb = {n: r['tb'] for n, r in prev.get('s', {}).items() if r.get('tb') is not None}
-            print(f'önceki uydu düzeltmesi kullanılıyor: {len(prev_tb)} mera', flush=True)
         except Exception as ex: print('önceki veri alınamadı:', str(ex)[:200])
+        if not prev_tb:
+            try: prev_tb = json.load(open(os.path.join(os.path.dirname(__file__), 'sst_bias.json'), encoding='utf-8'))
+            except Exception as ex: print('kalıcı yedek okunamadı:', str(ex)[:200])
+        print(f'önceki uydu düzeltmesi kullanılıyor: {len(prev_tb)} mera', flush=True)
     def nearest_idx(z, targets, tol):
         idx = np.clip(np.searchsorted(z.time, targets), 1, len(z.time) - 1)
         idx = np.where(np.abs(z.time[idx - 1] - targets) < np.abs(z.time[idx] - targets), idx - 1, idx)
         return idx, np.abs(z.time[idx] - targets) <= tol
-    for name, product, pattern, vars_, R in SETS:
-        ds, href = dataset_href(product, pattern); z = Zarr(href); used[name] = ds
+    def run_set(name, ds, href, vars_, R, targets_spots):
+        z = Zarr(href)
         daily = '_P1D' in ds; targets = days + 43200 if daily else hours   # günlük ortalamalar gün ortasına denk gelir
         # hedef saat/gün -> model zaman indeksi (en yakın, ±45 dk / ±13 sa içinde)
         idx, good = nearest_idx(z, targets, 13 * 3600 if daily else 2700)
-        if not good.any(): print(name, 'zaman aralığı yok'); continue
+        if not good.any(): print(name, ds, 'zaman aralığı yok', flush=True); return [], z
         ti0, ti1 = int(idx[good].min()), int(idx[good].max()) + 1
         # Sıcaklıkta uydu düzeltmesi için uydunun ölçüm gününün model saatleri de okunur
         bidx = bgood = None
@@ -233,23 +248,34 @@ def main(src, dst):
                     return n, out
             return n, None
         with cf.ThreadPoolExecutor(8) as ex:
-            got = list(ex.map(one, spots))
-        hit = 0
-        for n, vals in got:
-            if vals is None: continue
-            hit += 1; r = res[n]
-            if name.endswith('_cur'):
-                u, v = vals; sp = np.hypot(u, v); dr = (np.degrees(np.arctan2(u, v)) + 360) % 360
-                r.setdefault('src', name[:3]);
-                if 'c' not in r: r['c'], r['cd'] = sp * 100, dr          # cm/s, akıntının gittiği yön
-            elif name.endswith('_tem') and 't' not in r:
-                r['t'] = vals[0] * 10
-                if len(vals) > 1 and vals[1] is not None: r['tb'] = round(vals[1], 1)   # uydu düzeltmesi (°C)
-            elif name.endswith('_sal') and 'sa' not in r: r['sa'] = vals[0] * 10
-            elif name == 'bgc_o2': r['o2'] = vals[0]
-            elif name == 'bgc_kd': r['kd'] = vals[0] * 1000
-        print(f'{name}: {ds} · {hit}/{len(spots)} mera · {len(z.cache)} parça · {time.time() - t_start:.0f} sn', flush=True)
-        z.cache.clear()
+            return list(ex.map(one, targets_spots)), z
+    for name, product, pattern, vars_, R in SETS:
+        key = {'cur': 'c', 'tem': 't', 'sal': 'sa', 'o2': 'o2', 'kd': 'kd'}[name.split('_')[1]]
+        todo = [sp for sp in spots if key not in res[sp[0]]]   # Marmara modelinden gelen mera Karadeniz modelinden tekrar istenmez
+        used_here = []
+        # En yeni sürüm kapsam içindeki merayı boş bırakırsa bir önceki sürümden tamamlanır
+        for ds, href in dataset_versions(product, pattern):
+            if not todo: break
+            got, z = run_set(name, ds, href, vars_, R, todo)
+            hit = 0
+            for n, vals in got:
+                if vals is None: continue
+                hit += 1; r = res[n]
+                if name.endswith('_cur'):
+                    u, v = vals; sp_ = np.hypot(u, v); dr = (np.degrees(np.arctan2(u, v)) + 360) % 360
+                    r['src'], r['c'], r['cd'] = name[:3], sp_ * 100, dr      # cm/s, akıntının gittiği yön
+                elif name.endswith('_tem'):
+                    r['t'] = vals[0] * 10
+                    if len(vals) > 1 and vals[1] is not None: r['tb'] = round(vals[1], 1)   # uydu düzeltmesi (°C)
+                elif name.endswith('_sal'): r['sa'] = vals[0] * 10
+                elif name == 'bgc_o2': r['o2'] = vals[0]
+                elif name == 'bgc_kd': r['kd'] = vals[0] * 1000
+            print(f'{name}: {ds} · {hit}/{len(todo)} mera · {len(z.cache)} parça · {time.time() - t_start:.0f} sn', flush=True)
+            if hit: used_here.append(ds)
+            inside = [sp for sp in todo if z.lat[0] - .01 <= sp[1] <= z.lat[-1] + .01 and z.lon[0] - .01 <= sp[2] <= z.lon[-1] + .01]
+            todo = [sp for sp in inside if key not in res[sp[0]]]
+            z.cache.clear()
+        used[name] = ' + '.join(used_here)
     try:
         cf_ = __import__('os').path.join(__import__('os').path.dirname(__file__), 'akarsu.json')
         for n, v in load_rivers(cf_, int(day0), DAYS).items():
