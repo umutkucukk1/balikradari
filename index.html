@@ -7,6 +7,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Balık Radarı</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
@@ -245,8 +248,36 @@
   .spotlbl.tatli{border-left-color:#2e9e5b}
   .spotlbl:hover{background:#fff;z-index:5}
 
+  /* Av günlüğü düğmesi (haritada sol altta, herkesin göreceği yerde) */
+  #logFab{position:absolute;z-index:1000;left:12px;bottom:28px;height:52px;padding:0 18px 0 14px;border-radius:26px;border:0;
+    background:#f2c14e;color:#2a1d00;font-size:16px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.45);display:flex;align-items:center;gap:8px}
+  #logFab small{font-weight:600;font-size:11px;opacity:.75;display:block;line-height:1}
+  #logFab:hover{filter:brightness(1.06)}
+  .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+  .fgrid .full{grid-column:1/-1}
+  .fgrid input,.fgrid select,.fgrid textarea{font:inherit;font-size:16px;color:var(--text);background:var(--card);border:1px solid var(--line);
+    border-radius:10px;padding:10px;width:100%;max-width:none}
+  .fgrid textarea{min-height:64px;resize:vertical}
+  .seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .seg button{height:46px;padding:0 4px;border-radius:10px;font-weight:600}
+  .seg button.on{background:var(--accent);color:#04202a;border-color:var(--accent)}
+  .logrow{display:flex;gap:10px;align-items:flex-start;border-top:1px solid var(--line);padding:9px 0;font-size:13px}
+  .logrow:first-child{border-top:0}
+  .logrow .r{margin-left:auto;text-align:right;white-space:nowrap}
+  .cal{width:100%;border-collapse:separate;border-spacing:2px;font-size:11px}
+  .cal td,.cal th{padding:0;border:0;text-align:center;height:22px}
+  .cal th{color:var(--muted);font-weight:600}
+  .cal td.nm{text-align:left;padding-right:6px;white-space:nowrap;font-size:12px;color:var(--text)}
+  .cal td.c{border-radius:3px;min-width:18px}
+  .cal td.now{outline:2px solid #fff;outline-offset:-1px}
+  .dipfix{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .dipfix button{padding:6px 10px;border-radius:99px;font-size:13px}
+  .dipfix button.on{background:var(--accent);color:#04202a;border-color:var(--accent)}
+
   /* Mobil */
   @media (max-width:820px){
+    #logFab{bottom:calc(116px + env(safe-area-inset-bottom));left:10px;height:50px}
+    body.bars-open #logFab{display:none}
     #app{display:block}
     #mapWrap{position:fixed;inset:0}
     #toolbar{z-index:1150;top:calc(8px + env(safe-area-inset-top));left:8px;right:8px;width:auto;grid-template-columns:minmax(0,1fr) 48px 48px}
@@ -302,8 +333,13 @@
         <button id="guideBtn">📖 Balık rehberi</button>
         <button id="locBtn" title="Konumum">📍<span class="lbl"> Konumum</span></button>
         <button id="fsBtn" title="Tam ekran">⛶<span class="lbl"> Tam ekran</span></button>
+        <button id="logBtn">📒<span class="lbl"> Av günlüğüm</span></button>
+        <button id="calBtn">📅<span class="lbl"> Av takvimi</span></button>
+        <button id="notifBtn">🔔<span class="lbl"> Bildirimler</span></button>
+        <button id="installBtn">📲<span class="lbl"> Telefona yükle</span></button>
       </div>
     </div>
+    <button id="logFab" aria-label="Av kaydet">🎣<span>Av kaydet<small>tuttun mu? yaz</small></span></button>
   </div>
   <aside id="panel" data-state="min">
     <button id="handle" aria-label="Paneli büyüt/küçült"><span></span></button>
@@ -785,16 +821,16 @@ function baitInfo(name){
 
 // Balığın şu anki muhtemel konumu ve aktivitesi
 function behavior(f, e, score){
-  const kind = INFO[f.id].kind, [, lo, hi] = f.t;
-  const cold = e.wt < lo, warm = e.wt > hi;
+  const kind = INFO[f.id].kind, [, lo, hi] = f.t, wt = wtFor(f, e);
+  const cold = wt < lo, warm = wt > hi;
   const bright = e.period === 'day' && e.cloud < 50 && !e.murky;
   let layer, r = [];
   if (kind === 'dip') {
     layer = 'b'; r.push('dipten beslenen bir tür');
     if (f.id === 'sazan' && warm && bright && e.wind < 12) { layer = 's'; r = ['sıcak, güneşli ve sakin havada yüzeye yakın güneşlenip besleniyor']; }
-    if (cold) r.push(`su ${e.wt.toFixed(0)}°C, soğuk: hareketleri yavaş`);
+    if (cold) r.push(`su ${wt.toFixed(0)}°C, soğuk: hareketleri yavaş`);
   } else if (kind === 'pusu') {
-    if (cold) { layer = 'b'; r.push(`su ${e.wt.toFixed(0)}°C, soğuk: derine çekilmiş ve yavaşlamış`); }
+    if (cold) { layer = 'b'; r.push(`su ${wt.toFixed(0)}°C, soğuk: derine çekilmiş ve yavaşlamış`); }
     else if (bright) {
       layer = (f.id === 'sudak' || f.id === 'yayin') ? 'b' : 'm';
       r.push(layer === 'b' ? 'parlak ışıktan kaçıp derinde bekliyor' : 'parlak güneşte gölgede ve örtü altında, orta suda bekliyor');
@@ -806,7 +842,7 @@ function behavior(f, e, score){
         : 'bulutlu havada ışık az, yüzeye yakın avlanıyor');
     }
     if (warm) { if (layer === 's' && e.period === 'day') layer = 'm'; r.push('su sıcak: serin, derin ve gölgeli yerleri tercih ediyor'); }
-    if (!cold && !warm && !bright) r.push(`su ${e.wt.toFixed(0)}°C, ideal aralıkta`);
+    if (!cold && !warm && !bright) r.push(`su ${wt.toFixed(0)}°C, ideal aralıkta`);
   } else if (kind === 'pelajik') {
     if (e.period !== 'day' || e.cloud >= 70) { layer = 's'; r.push('az ışıkta yem sürülerini yüzeyde kovalıyor'); }
     else { layer = 'm'; r.push('parlak gündüzde sürüyle orta suda ya da derinde'); }
@@ -2498,6 +2534,7 @@ const BOTTOM_PREF = {
   kefal:{camur:1.06, kum:1.02, cakil:1, kaya:.96},       mezgit:{camur:1.05, kum:1.02, cakil:1, kaya:.95},
 };
 function bottomOf(p){
+  const fx = dipFixGet(p); if (fx) return {t: fx, w: 1, src: 'senin düzeltmen'};
   if (p.bt) return p.bt;
   if (!p.custom && NAV_BOTTOM[p.n]) return {t: NAV_BOTTOM[p.n], w: 1, src: 'Navionics: kaya işaretleri'};
   if (!p.custom && BT_SEED[p.n]) return {...BT_SEED[p.n], src: seedSrc(BT_SEED[p.n])};
@@ -2606,6 +2643,11 @@ function envAt(S, i){
   const wt = water === 'tuzlu'
     ? (sst ?? clamp(airMean + 1.5, 5, 28))
     : clamp(airMean + ({dere:-2.5, nehir:-1, gol:0.5, baraj:0.5, lagun:1}[p.w] ?? 0), 3, 29);
+  // Termoklin (deniz.json'daki günlük sıcaklık profili, meranın biraz açığı) ve meranın derinliğindeki su sıcaklığı
+  const thermo = dz && dz.tp ? thermoOf(dz.tp) : null;
+  const depthM = water === 'tuzlu' ? (!p.custom && D_SEED[p.n] ? D_SEED[p.n][0]
+      : (p.d == null || (p.d === 6 && !p.custom)) ? (KIND_DEPTH[spotKind(p)] ?? p.d ?? 8) : p.d) : null;
+  const wtDip = thermo && depthM != null ? tempAtDepth(thermo, depthM, wt) : null;
 
   const date = time.slice(0, 10), D = S.F.daily, di = D.time.indexOf(date);
   const epoch = parseLocal(time, S.off) + 30 * 60000;
@@ -2665,8 +2707,7 @@ function envAt(S, i){
     chl: water === 'tuzlu' && p.chl ? p.chl.v : null,
     chlRise: water === 'tuzlu' && p.chl && p.chl.v7 ? p.chl.v / p.chl.v7 : null, chlDay: p.chl ? p.chl.t : null,
     // Kıyı noktalarında genel 6 m varsayımı yerine nokta tipine göre derinlik (mendirek 10, kumsal 4, ağız 3)
-    depth: water === 'tuzlu' ? (!p.custom && D_SEED[p.n] ? D_SEED[p.n][0]
-      : (p.d == null || (p.d === 6 && !p.custom)) ? (KIND_DEPTH[spotKind(p)] ?? p.d ?? 8) : p.d) : null,
+    depth: depthM, thermo, wtDip,
     depthShore: water === 'tuzlu' && !p.custom && NAV_DEPTH[p.n] ? NAV_DEPTH[p.n][0] : null,
     murky: turb >= 1, month: +time.slice(5, 7), mmdd: time.slice(5, 10),
     moonPhase: phase, moonIll: Math.round(mi.fraction * 100),
@@ -2800,6 +2841,42 @@ function solunarFactor(S, e){
 // =====================================================================
 //  TAHMİN MOTORU
 // =====================================================================
+// ---------- Termoklin ----------
+// Profil: [[derinlik m, °C×10], …] (Copernicus, günde iki kez). En hızlı sıcaklık değişimi olan aralık termoklindir;
+// komşu aralıklar en büyük eğimin yarısından dikse katmana eklenir. 0,1°C/m altı = su karışık, termoklin yok.
+function thermoOf(tp){
+  if (tp._th !== undefined) return tp._th;
+  const P = (tp.p || []).map(([d, t]) => [d, t / 10]).sort((a, b) => a[0] - b[0]);
+  if (P.length < 4) return (tp._th = null);
+  // s > 0: derine indikçe soğuyor (olağan katmanlaşma). Kasım'da yüzey soğurken birkaç metre altında ılık bir ara katman
+  // kalabiliyor (ters katman, Hereke/Yarımca 7 Kas); termoklin o ılık katmanın altındaki soğumaya göre seçilir.
+  const s = []; for (let k = 0; k + 1 < P.length; k++) s.push((P[k][1] - P[k + 1][1]) / (P[k + 1][0] - P[k][0]));
+  let m = -1; s.forEach((x, k) => { if (P[k][0] >= 2 && (m < 0 || x > s[m])) m = k; });
+  const deep = P[P.length - 1];
+  const inv = s.some((x, k) => x <= -0.2 && P[k][0] >= 1);
+  const base = {P, bottomT: deep[1], maxD: deep[0], km: tp.km, inv};
+  if (m < 0 || s[m] < 0.1) return (tp._th = {...base, mixed: true});
+  let a = m, b = m;
+  while (a > 0 && s[a - 1] >= s[m] / 2 && P[a - 1][0] >= 2) a--;
+  while (b + 1 < s.length && s[b + 1] >= s[m] / 2) b++;
+  return (tp._th = {...base, mixed: false, top: P[a][0], bot: P[b + 1][0], upT: P[a][1], lowT: P[b + 1][1]});
+}
+// Bir derinlikteki su: termoklinin üstü yüzeyle aynı (saatlik, uydu düzeltmeli yüzey değeri), altı profilden (alt katman
+// günler içinde pek değişmez), arası doğrusal geçiş. Modelin yüzeydeki sapması böylece alt katmana taşınmaz.
+function tempAtDepth(th, d, surf){
+  const at = dd => { const P = th.P; if (dd <= P[0][0]) return P[0][1]; for (let k = 0; k + 1 < P.length; k++) if (dd <= P[k + 1][0])
+    return P[k][1] + (P[k + 1][1] - P[k][1]) * (dd - P[k][0]) / (P[k + 1][0] - P[k][0]); return P[P.length - 1][1]; };
+  const dd = Math.min(d, th.maxD);
+  if (th.mixed || dd <= th.top) return surf;
+  if (dd >= th.bot) return at(dd);
+  return surf + (at(th.bot) - surf) * (dd - th.top) / (th.bot - th.top);
+}
+// Dip türleri meranın derinliğindeki suyu, diğerleri yüzeyi hisseder; fark 0,3°C'den küçükse yüzey kullanılır
+function wtFor(f, e){
+  if (e.wtDip == null || !INFO[f.id] || INFO[f.id].kind !== 'dip' || Math.abs(e.wtDip - e.wt) < 0.3) return e.wt;
+  return e.wtDip;
+}
+
 const HUNTERS = ['palamut', 'lufer', 'kolyoz'];
 const LIGHT_FISH = ['istavrit', 'kalamar', 'mezgit'], SURF_FISH = ['levrek', 'karagoz', 'sargoz', 'cupra', 'minekop'];
 function scoreFish(f, e, spot){
@@ -2808,9 +2885,10 @@ function scoreFish(f, e, spot){
   if (f.water === 'tuzlu' && e.sea && !f.seas.includes(e.sea)) return null;
   const why = [];
   let s = 1;
-  const t = e.wt, [tmin, lo, hi, tmax] = f.t;
-  if (t < tmin || t > tmax) { s *= 0.05; why.push(`su ${t.toFixed(1)}°C – tolerans dışı`); }
-  else if (t >= lo && t <= hi) why.push(`su sıcaklığı ideal (${lo}–${hi}°C)`);
+  // Dip balıkları kendi derinliklerindeki suyu hisseder (termoklin altında yüzeyden 2–4°C farklı olabilir)
+  const t = wtFor(f, e), [tmin, lo, hi, tmax] = f.t, dipT = t !== e.wt;
+  if (t < tmin || t > tmax) { s *= 0.05; why.push(`${dipT ? 'dipte ' : ''}su ${t.toFixed(1)}°C – tolerans dışı`); }
+  else if (t >= lo && t <= hi) why.push(`${dipT ? `dipte su ${t.toFixed(1)}°C – ` : 'su sıcaklığı '}ideal (${lo}–${hi}°C)`);
   else if (t < lo) { s *= 0.35 + 0.65*(t - tmin)/(lo - tmin); why.push('su biraz soğuk'); }
   else { s *= 0.35 + 0.65*(tmax - t)/(tmax - hi); why.push('su biraz sıcak'); }
 
@@ -3387,7 +3465,7 @@ function welcome(){
     ${sourcesCard()}`;
 }
 function sourcesCard(){
-  return `<div class="card note"><b>Veri:</b> Hava — Open-Meteo · Deniz (dalga, su sıcaklığı, akıntı) — Open-Meteo Marine · Klorofil — Copernicus Marine (uydu) · Akıntı, su sıcaklığı, tuzluluk, oksijen — Copernicus Marmara (500 m) ve Karadeniz (2,5 km) modelleri · Balıkçı teknesi avcılığı — Global Fishing Watch · Akarsu debisi — GloFAS (Open-Meteo) · Derinlik — EMODnet ·
+  return `<div class="card note">${dataFresh()}<b>Veri:</b> Hava — Open-Meteo · Deniz (dalga, su sıcaklığı, akıntı) — Open-Meteo Marine · Klorofil — Copernicus Marine (uydu) · Akıntı, su sıcaklığı, sıcaklık profili (termoklin), tuzluluk, oksijen — Copernicus Marmara (500 m) ve Karadeniz (2,5 km) modelleri · Balıkçı teknesi avcılığı — Global Fishing Watch · Akarsu debisi — GloFAS (Open-Meteo) · Derinlik — EMODnet ·
     İl/ilçe sınırı — OpenStreetMap Nominatim · Ay/güneş — SunCalc.<br>
     <b>Nokta kaynakları:</b> <a href="https://istanbul.com/tr/blog/seasonal-picks/fishing-in-istanbul" target="_blank" rel="noopener">istanbul.com</a>,
     <a href="https://bolu.tarimorman.gov.tr/Sayfalar/Detay.aspx?SayfaId=78" target="_blank" rel="noopener">Bolu İl Tarım ve Orman</a>,
@@ -3501,6 +3579,7 @@ function renderDetail(){
     ${spot.shore != null ? `<p class="sub" style="margin:6px 0 0">${spot.shore <= 150 ? '🎣' : '🚤'} ${fmtShore(spot.shore)}</p>` : ''}
     ${spot.not ? `<p class="sub" style="margin:8px 0 0">💬 ${spot.not}</p>` : ''}
     ${spot.f && spot.f.length ? `<div style="margin-top:6px"><span class="sub">Bilinen türler (dokun, ayrıntı aç):</span><br>${spot.f.map(fchip).join('')}</div>` : ''}
+    <div class="tags"><button class="primary" id="logHere" style="background:#f2c14e;border-color:#f2c14e;color:#2a1d00">🎣 Burada av kaydet</button></div>
   </div>
   <div class="card">
     <h2>${isNow ? 'Şu an' : 'Seçili saat'} · ${dayLabel(e.time)} ${hh(e.time)} · genel av verimi
@@ -3522,16 +3601,21 @@ function renderDetail(){
   </div></div>
   <div class="card"><h2>Su</h2><div class="grid">
     ${stat('Su sıcaklığı', `${e.wt.toFixed(1)}°C`, (e.water === 'tuzlu' && e.sst != null ? (e.sstModel ? e.model : S.mFrom ? `model · ${S.mFrom} km açıktan` : 'ölçüm/model') : 'tahmini') + (e.wtd != null && Math.abs(e.wtd) >= 0.3 ? ` · 24 sa: ${e.wtd > 0 ? '+' : ''}${e.wtd.toFixed(1)}°` : ''))}
+    ${e.thermo ? stat('Termoklin', e.thermo.mixed ? 'yok' : `${Math.round(e.thermo.top)}–${Math.round(e.thermo.bot)} m`,
+      (e.thermo.mixed ? `su ${Math.round(e.thermo.maxD)} m'ye kadar karışık` : `altı ${fmt1(e.thermo.lowT)}°C`) + (e.thermo.inv ? ' · yüzeyin altında ılık ara katman' : '')
+      + ` · ${Math.round(e.thermo.maxD)} m'de ${fmt1(e.thermo.bottomT)}°C · model${e.thermo.km >= 0.5 ? `, ${fmt1(e.thermo.km)} km açık` : ''}`) : ''}
+    ${e.wtDip != null && Math.abs(e.wtDip - e.wt) >= 0.3 ? stat('Dipte su', `${fmt1(e.wtDip)}°C`, `${e.depth < 10 ? fmt1(e.depth) : Math.round(e.depth)} m'de · dip balıkları için kullanılır`) : ''}
     ${e.water === 'tuzlu' ? stat('Dalga', e.wave != null ? `${e.wave.toFixed(1)} m` : '—', e.wavePer ? `${e.wavePer.toFixed(1)} sn · ${dirName(e.waveDir)}` : '') : ''}
     ${e.water === 'tuzlu' ? stat('Akıntı', e.cur != null ? `${e.cur.toFixed(1)} <small>km/s</small>` : '—', [e.curDir != null ? `${dirName(e.curDir)} yönüne` : '', e.curRel != null ? (e.curRel < 0.9 || e.curRel > 1.1 ? `olağanın ${e.curRel.toFixed(1).replace('.', ',')} katı` : 'olağan seviyede') : '', e.model ? 'Copernicus' : ''].filter(Boolean).join(' · ')) : ''}
     ${e.sal != null ? stat('Tuzluluk', `${e.sal.toFixed(1).replace('.', ',')} <small>‰</small>`, e.salDrop != null && e.salDrop >= 1.5 ? `olağandan ${e.salDrop.toFixed(1).replace('.', ',')} düşük – tatlı su girişi` : e.sal < 20 ? 'Karadeniz suyu (az tuzlu)' : 'Marmara/Akdeniz suyu') : ''}
     ${e.light ? stat('Aydınlatma', {isikli:'Işıklı', olasi:'Muhtemelen ışıklı', karanlik:'Işıksız'}[e.light], e.light === 'olasi' ? 'iskele/liman · OSM\'de bilgi yok' : spot.custom ? 'açık deniz' : 'OpenStreetMap') : ''}
     ${e.river != null ? stat('Akarsu', `${e.river < 10 ? e.river.toFixed(1).replace('.', ',') : Math.round(e.river)} <small>m³/s</small>`, `olağan ${String(e.riverMed).replace('.', ',')} · ${e.riverRel >= 2 && e.river >= 5 ? `taşkın (×${e.riverRel.toFixed(1).replace('.', ',')}) – ağızda su bulanık` : e.riverRel >= 1.3 ? 'olağandan yüksek' : 'normal'} · GloFAS`) : ''}
-    ${e.o2 != null ? stat('Oksijen', `${e.o2} <small>mmol/m³</small>`, e.o2 < 180 ? 'düşük' : 'yeterli') : ''}
+    ${e.o2 != null ? stat('Oksijen', `${fmt1(e.o2 * 0.032)} <small>mg/L</small>`, (e.o2 < 180 ? 'düşük' : 'yeterli') + ' · ideal 5+') : ''}
     ${e.gfw ? stat('Gırgır avı', e.gfw.h ? `${e.gfw.n} <small>tekne · ${e.gfw.h} sa</small>` : 'yok', `12 km içinde · ${e.gfw.from ? e.gfw.from.slice(8, 10) + '.' + e.gfw.from.slice(5, 7) + '–' + e.gfw.to.slice(8, 10) + '.' + e.gfw.to.slice(5, 7) : 'son hafta'}${e.gfw.prev || e.gfw.h ? ` · önceki hafta ${e.gfw.prev} sa` : ''} · Global Fishing Watch`) : ''}
     ${e.chl != null ? stat('Klorofil', `${e.chl.toFixed(1).replace('.', ',')} <small>mg/m³</small>`, [`uydu · ${e.chlDay.slice(8, 10)}.${e.chlDay.slice(5, 7)}`, e.chlRise != null ? `7 günde ×${e.chlRise.toFixed(1).replace('.', ',')}` : '', e.chl >= 8 ? 'çiçeklenme' : e.chl >= 3 ? 'bol plankton' : e.chl < 1 ? 'berrak, az plankton' : ''].filter(Boolean).join(' · ')) : ''}
     ${e.water === 'tuzlu' ? stat('Derinlik', `${e.depth < 10 ? e.depth.toFixed(1).replace('.0', '') : Math.round(e.depth)} m`, spot.dNote || seedDepthNote(spot.n) || (spot.custom ? 'EMODnet' : 'tahmini (mera tipinden)')) : ''}
-    ${e.bottom ? stat('Dip', BOTTOM_TR[e.bottom.t], `tahmin · ${e.bottom.src}`) : ''}
+    ${e.water === 'tuzlu' ? stat('Dip', e.bottom ? BOTTOM_TR[e.bottom.t] : 'bilinmiyor', `${e.bottom ? (e.bottom.src === 'senin düzeltmen' ? '✔ senin düzeltmen' : 'tahmin · ' + e.bottom.src) : 'veri yok'} · <button class="linkbtn" id="dipFixBtn">düzelt</button>`) : ''}
+    ${e.kd != null ? stat('Görüş mesafesi', `~${fmt1(Math.min(15, 1.7 / e.kd))} m`, (1.7 / e.kd) < 2.5 ? 'çok bulanık' : (1.7 / e.kd) < 5 ? 'orta' : 'berrak') : ''}
     ${stat('Su durumu', e.murky ? 'Bulanık' : 'Berrak', e.kd != null ? `model · ışık sönümü ${e.kd.toFixed(2).replace('.', ',')}/m` : e.riverRel >= 2 && e.river >= 5 ? 'tahmini · akarsu taşkını' : e.salDrop != null && e.salDrop >= 1.5 ? 'tahmini · tatlı su girişi' : 'tahmini')}
     ${stat('Işık', {day:'Gündüz', night:'Gece', twilight:'Alacakaranlık'}[e.period], `☀ ${hh(e.sunrise)} – ${hh(e.sunset)}`)}
   </div>
@@ -3583,6 +3667,8 @@ function renderDetail(){
   $('tab-detay').scrollTop = 0;
   hydrate($('tab-detay'));
   const b = $('backNow'); if (b) b.onclick = () => { state.sel = 0; renderDetail(); renderWeek(); };
+  $('logHere').onclick = () => openLogForm(spot, e.time);
+  const df = $('dipFixBtn'); if (df) df.onclick = () => openDipFix(spot);
 }
 
 // ---------- 7 gün / saat saat ----------
@@ -4655,6 +4741,287 @@ $('locBtn').onclick = () => {
   }, () => alert('Konum alınamadı (izin verilmedi ya da sayfa güvenli bağlantıda açılmadı).'));
 };
 addEventListener('resize', () => map.invalidateSize());
+
+// =====================================================================
+//  AV GÜNLÜĞÜ · DİP DÜZELTME · AV TAKVİMİ · BİLDİRİM · TELEFONA YÜKLEME
+// =====================================================================
+// (fonksiyon bildirimi: dosyanın başındaki kodlar da güvenle çağırabilsin)
+function fmt1(n){ return n.toFixed(1).replace('.', ','); }
+function lsGet(k, d){ try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } }
+function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+function agoText(iso){
+  const m = Math.round((Date.now() - Date.parse(iso)) / 60000);
+  return m < 60 ? `${Math.max(1, m)} dk önce` : m < 48 * 60 ? `${Math.round(m / 60)} saat önce` : `${Math.round(m / 1440)} gün önce`;
+}
+function dataFresh(){
+  const d = DENIZ && DENIZ.gen ? `Deniz modeli (akıntı, su sıcaklığı, tuzluluk) <b>${agoText(DENIZ.gen)}</b> güncellendi · ` : '';
+  return `<div style="margin-bottom:6px">🕒 ${d}hava tahmini her açılışta canlı çekilir${navigator.onLine === false ? ' · <b>çevrimdışı: son kaydedilen veri gösteriliyor</b>' : ''}</div>`;
+}
+
+// ---------- Dip tipini elle düzeltme ----------
+// Kullanıcının bildiği dip tipi tahminin yerine geçer (bu cihazda kalır) ve ayrıca günlüğe "dip bilgisi" olarak gönderilir.
+function dipKey(p){ return p.custom ? `${p.lat.toFixed(3)},${p.lng.toFixed(3)}` : p.n; }
+function dipFixGet(p){ const m = lsGet('dipfix', {}); return m[dipKey(p)] || null; }
+function openDipFix(spot){
+  const cur = dipFixGet(spot), est = (() => { const m = lsGet('dipfix', {}), k = dipKey(spot), v = m[k]; delete m[k]; lsSet('dipfix', m); const b = bottomOf(spot); if (v) { m[k] = v; lsSet('dipfix', m); } return b; })();
+  openModal(`<h3 style="margin:0">🪨 ${spot.n} · dip tipi</h3>
+    <p class="sub">Uygulamanın tahmini: <b>${est ? BOTTOM_TR[est.t] + ' (' + est.src + ')' : 'bilinmiyor'}</b>. Burayı biliyorsan doğrusunu seç;
+      levrek, karagöz, barbun gibi dip balıklarının puanı buna göre hesaplanır.</p>
+    <div class="dipfix">${Object.entries(BOTTOM_TR).map(([k, v]) => `<button data-b="${k}" class="${cur === k ? 'on' : ''}">${v}</button>`).join('')}
+      <button data-b="">↺ tahmine dön</button></div>
+    <p class="note" style="margin-top:10px">Seçimin bu cihazda saklanır ve diğer balıkçılar için haritayı iyileştirmek üzere av günlüğü tablosuna (isimsiz) gönderilir.</p>`);
+  mbody.querySelectorAll('[data-b]').forEach(b => b.onclick = () => {
+    const m = lsGet('dipfix', {}), k = dipKey(spot);
+    if (b.dataset.b) m[k] = b.dataset.b; else delete m[k];
+    lsSet('dipfix', m);
+    if (b.dataset.b) logSave({tip:'dip', mera:spot.n, lat:spot.lat, lng:spot.lng, tur:'', sonuc:'', adet:'', yem:'',
+      not:`dip: ${BOTTOM_TR[b.dataset.b]} (tahmin: ${est ? BOTTOM_TR[est.t] : 'yok'})`, zaman:localHour(new Date()), genel:'', turPuan:''});
+    closeModal();
+    if (state.S && state.S.p === spot) {
+      state.hours = []; for (let i = state.S.nowIdx; i < state.S.F.hourly.time.length; i++) state.hours.push(hourScore(state.S, i));
+      renderDetail(); renderWeek();
+    }
+  });
+}
+
+// ---------- Av günlüğü ----------
+// Kayıtlar önce cihazda tutulur, sonra arka planda Google Formlar'a gönderilir (sayfadan çıkılmaz, yönlendirme yok).
+// Form yanıtları sahibin Google Drive'ındaki tabloya düşer. Gönderilemeyen kayıtlar internet gelince tekrar denenir.
+// tools/av_gunlugu_kur.gs ile oluşturuldu (7 Kas 2026); yanıtlar sahibin Drive'ındaki "Balık Radarı – Av Günlüğü (kayıtlar)" tablosunda
+const LOG_FORM = {url:'https://docs.google.com/forms/d/e/1FAIpQLScfuifblx-ksUIleqt2M8Oi8lZGFlW4t3MwcSSFnNVd8XlXgg/formResponse',
+  f:{tip:'entry.459053134', zaman:'entry.67608872', mera:'entry.956811560', konum:'entry.845903496', tur:'entry.1607185110',
+     sonuc:'entry.1343721160', adet:'entry.890005316', yem:'entry.1691506544', not:'entry.1797382243', genel:'entry.1077439625',
+     turPuan:'entry.302586648', cihaz:'entry.245256504', surum:'entry.1720074749'}};
+const SONUC = {bol:'🔥 Bol', var:'✅ Var', az:'🤏 Az', yok:'❌ Hiç yok'};
+const localHour = d => { const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
+function devId(){ let id = lsGet('devid', ''); if (!id) { id = Math.random().toString(36).slice(2, 10); lsSet('devid', id); } return id; }
+function logSave(rec){
+  rec.id = rec.id || Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  rec.sent = false; rec.at = new Date().toISOString();
+  const L_ = lsGet('avlog', []); L_.unshift(rec); lsSet('avlog', L_.slice(0, 500));
+  logSync(); updateFab();
+  return rec;
+}
+let syncing = false;
+async function logSync(){
+  if (syncing || !LOG_FORM.url || navigator.onLine === false) return;
+  syncing = true;
+  try {
+    const L_ = lsGet('avlog', []);
+    for (const r of L_.filter(x => !x.sent)) {
+      const body = new URLSearchParams();
+      const vals = {tip:r.tip, zaman:r.zaman.replace('T', ' '), mera:r.mera, konum:`${(+r.lat).toFixed(4)},${(+r.lng).toFixed(4)}`, tur:r.tur,
+        sonuc:r.sonuc ? SONUC[r.sonuc].replace(/^\S+ /, '') : '', adet:r.adet, yem:r.yem, not:r.not, genel:r.genel, turPuan:r.turPuan,
+        cihaz:devId(), surum:'web'};
+      for (const [k, v] of Object.entries(vals)) if (LOG_FORM.f[k]) body.append(LOG_FORM.f[k], v ?? '');
+      try { await fetch(LOG_FORM.url, {method:'POST', mode:'no-cors', body}); r.sent = true; lsSet('avlog', L_); }
+      catch { break; }
+    }
+  } finally { syncing = false; updateFab(); }
+}
+addEventListener('online', logSync);
+function updateFab(){
+  const n = lsGet('avlog', []).filter(r => r.tip === 'av').length;
+  $('logBtn').innerHTML = `📒<span class="lbl"> Av günlüğüm${n ? ' (' + n + ')' : ''}</span>`;
+}
+// Bir meranın belirli saatteki puanı (genel + tür); seri o saati içermiyorsa boş döner
+async function scoreAtTime(spot, time, fishId){
+  try {
+    const S = state.S && state.S.p === spot ? state.S : (await fetchSeries([spot]))[0];
+    const i = S.F.hourly.time.indexOf(time.slice(0, 13) + ':00');
+    if (i < 0) return {genel:'', turPuan:''};
+    const H = hourScore(S, i), r = fishId ? H.list.find(x => x.fish.id === fishId) : null;
+    return {genel: H.score, turPuan: r ? r.adj : (fishId ? 0 : '')};
+  } catch { return {genel:'', turPuan:''}; }
+}
+function nearestSpot(ll){
+  let best = null, bd = 1e12;
+  for (const s of SPOTS) { const d = map.distance(ll, [s.lat, s.lng]); if (d < bd) { bd = d; best = s; } }
+  return {s: best, d: bd};
+}
+function openLogForm(spot, time){
+  spot = spot || (state.S && state.S.p) || null;
+  const fishOpts = list => [...list].sort((a, b) => trSort(a.ad, b.ad)).map(f => `<option value="${f.id}">${f.ad}</option>`).join('');
+  const now = localHour(new Date());
+  const t0 = time && time < now ? time.slice(0, 16) : now;
+  openModal(`<h3 style="margin:0">🎣 Av kaydet</h3>
+    <p class="sub" style="margin:2px 0 0">Ne tuttuğunu (ya da hiç tutamadığını) yaz. Uygulamanın o saatte verdiği puanla karşılaştırıp tahminleri düzeltiyoruz.</p>
+    <div class="fgrid">
+      <label class="fl full"><span>NEREDE?</span>
+        <input id="lgSpot" list="spotList" placeholder="Mera adı yaz ya da seç" value="${spot ? spot.n.replace(/"/g, '&quot;') : ''}" autocomplete="off"></label>
+      <div class="full"><button id="lgGps" style="width:100%">📍 Bulunduğum yeri kullan</button></div>
+      <label class="fl"><span>NE ZAMAN?</span><input id="lgTime" type="datetime-local" value="${t0}" max="${now}"></label>
+      <label class="fl"><span>HANGİ BALIK?</span><select id="lgFish">
+        <option value="">Bilmiyorum / karışık</option><optgroup label="🌊 Deniz">${fishOpts(SALT)}</optgroup><optgroup label="🏞️ Tatlı su">${fishOpts(FRESH)}</optgroup></select></label>
+      <div class="fl full"><span>NASILDI?</span><div class="seg" id="lgRes">${Object.entries(SONUC).map(([k, v]) => `<button data-r="${k}">${v}</button>`).join('')}</div></div>
+      <label class="fl"><span>KAÇ TANE?</span><input id="lgN" type="number" min="0" max="999" inputmode="numeric" placeholder="ör. 5"></label>
+      <label class="fl"><span>YEM / TEKNİK</span><input id="lgBait" placeholder="ör. rapala, LRF, karides"></label>
+      <label class="fl full"><span>NOT (isteğe bağlı)</span><textarea id="lgNote" maxlength="300" placeholder="ör. sabah 6'da başladı, 7'de kesildi"></textarea></label>
+      <div class="full"><button class="primary" id="lgSave" style="width:100%;height:50px;font-size:16px">Kaydet</button></div>
+    </div>
+    <p class="note" style="margin-top:10px">Kayıt isimsizdir (ad, telefon, hesap istenmez); mera, saat, balık ve sonuç uygulamanın geliştirilmesi için ortak tabloya gönderilir.
+      İnternet yoksa telefonda bekler, bağlantı gelince gönderilir.</p>`);
+  let res = '', gps = null;
+  mbody.querySelectorAll('#lgRes button').forEach(b => b.onclick = () => {
+    res = b.dataset.r; mbody.querySelectorAll('#lgRes button').forEach(x => x.classList.toggle('on', x === b));
+  });
+  if (state.target) $('lgFish').value = state.target;
+  $('lgGps').onclick = () => {
+    if (!navigator.geolocation) return alert('Telefonun konum desteği vermiyor.');
+    $('lgGps').textContent = 'Konum alınıyor…';
+    navigator.geolocation.getCurrentPosition(p => {
+      gps = L.latLng(p.coords.latitude, p.coords.longitude);
+      const {s, d} = nearestSpot(gps);
+      $('lgSpot').value = d < 3000 ? s.n : `Konumum (${gps.lat.toFixed(3)}, ${gps.lng.toFixed(3)})`;
+      $('lgGps').textContent = d < 3000 ? `📍 ${s.n} (${Math.round(d)} m)` : '📍 Konum alındı';
+    }, () => { $('lgGps').textContent = '📍 Konum alınamadı – adı yaz'; });
+  };
+  $('lgSave').onclick = async () => {
+    const name = $('lgSpot').value.trim();
+    if (!name) return alert('Nerede olduğunu yaz ya da konumunu kullan.');
+    if (!res) return alert('Nasıldı? Bol / Var / Az / Hiç yok seçeneklerinden birini seç.');
+    const t = $('lgTime').value || now;
+    const known = SPOTS.find(s => s.n === name) || (spot && spot.n === name ? spot : null);
+    const ll = gps || (known ? L.latLng(known.lat, known.lng) : null);
+    const near = ll ? nearestSpot(ll) : null;
+    const scoreSpot = known || (near && near.d < 5000 ? near.s : null);
+    $('lgSave').disabled = true; $('lgSave').innerHTML = '<span class="spin"></span>Kaydediliyor…';
+    const fish = $('lgFish').value;
+    const sc = scoreSpot ? await scoreAtTime(scoreSpot, t, fish) : {genel:'', turPuan:''};
+    logSave({tip:'av', zaman:t, mera:name, lat: ll ? ll.lat : '', lng: ll ? ll.lng : '', tur: fish ? FISH_BY_ID[fish].ad : 'karışık',
+      fishId: fish, sonuc: res, adet: $('lgN').value, yem: $('lgBait').value.trim(), not: $('lgNote').value.trim(), ...sc});
+    openModal(`<h3 style="margin:0">✅ Kaydedildi, teşekkürler!</h3>
+      <p class="hint" style="margin-top:8px">${name} · ${t.replace('T', ' ')} · ${fish ? FISH_BY_ID[fish].ad : 'karışık'} · <b>${SONUC[res]}</b></p>
+      ${sc.genel !== '' ? `<p class="hint">O saatte uygulamanın puanı: genel <b style="color:${scoreColor(sc.genel)}">${sc.genel}</b>${fish ? ` · ${FISH_BY_ID[fish].ad} <b style="color:${scoreColor(sc.turPuan)}">${sc.turPuan}</b>` : ''}</p>` : ''}
+      <div class="tags" style="margin-top:12px"><button class="primary" id="lgMore">+ Bir kayıt daha</button><button id="lgList">📒 Günlüğüm</button></div>`);
+    $('lgMore').onclick = () => openLogForm(spot);
+    $('lgList').onclick = openLogList;
+  };
+}
+function openLogList(){
+  const L_ = lsGet('avlog', []).filter(r => r.tip === 'av');
+  const got = L_.filter(r => (r.sonuc === 'bol' || r.sonuc === 'var') && r.turPuan !== ''), none = L_.filter(r => r.sonuc === 'yok' && r.turPuan !== '');
+  const avg = a => a.length ? Math.round(a.reduce((s, r) => s + +r.turPuan, 0) / a.length) : null;
+  openModal(`<h3 style="margin:0">📒 Av günlüğüm</h3>
+    <p class="sub" style="margin:2px 0 8px">${L_.length} kayıt · bu telefonda saklanır${LOG_FORM.url ? ' ve ortak tabloya gönderilir' : ''}.</p>
+    ${got.length || none.length ? `<div class="card"><h2>Uygulama ne kadar tuttu?</h2><div class="grid">
+      ${stat('Av olan çıkışlar', avg(got) ?? '—', `${got.length} kayıt · ort. tür puanı`)}
+      ${stat('Av olmayan çıkışlar', avg(none) ?? '—', `${none.length} kayıt · ort. tür puanı`)}
+      ${stat('Fark', avg(got) != null && avg(none) != null ? (avg(got) - avg(none) > 0 ? '+' : '') + (avg(got) - avg(none)) : '—', 'büyük olması iyi')}</div></div>` : ''}
+    <button class="primary" id="llNew" style="width:100%;height:46px;margin-bottom:10px;background:#f2c14e;border-color:#f2c14e;color:#2a1d00">🎣 Yeni av kaydı</button>
+    <div class="card">${L_.length ? L_.map(r => `<div class="logrow"><div><b>${r.mera}</b><br><span class="sub">${r.zaman.replace('T', ' ')} · ${r.tur}${r.adet ? ' · ' + r.adet + ' adet' : ''}${r.yem ? ' · ' + r.yem : ''}</span>
+        ${r.not ? `<br><span class="sub">💬 ${r.not.replace(/</g, '&lt;')}</span>` : ''}</div>
+      <div class="r"><b>${SONUC[r.sonuc] || ''}</b><br><span class="sub">puan ${r.turPuan !== '' ? r.turPuan : '—'}${r.genel !== '' ? ' / ' + r.genel : ''}</span><br>
+        <span class="sub">${r.sent ? '☁️ gönderildi' : LOG_FORM.url ? '⏳ bekliyor' : '📱 telefonda'}</span></div></div>`).join('') : '<p class="hint">Henüz kayıt yok. Haritadaki sarı <b>🎣 Av kaydet</b> düğmesiyle başla.</p>'}</div>`);
+  $('llNew').onclick = () => openLogForm();
+}
+
+// ---------- Av takvimi ----------
+function openCalendar(zone){
+  const z0 = zone || (state.S && state.S.p.w === 'deniz' ? seaZone(state.S.p.lat, state.S.p.lng) : 'I');
+  const mNow = new Date().getMonth();
+  const rows = SALT.filter(f => ABUND[f.id]).map(f => ({f, v: ABUND[f.id].m.map(m => ABUND[f.id].z[z0] * m)}))
+    .sort((a, b) => b.v[mNow] - a.v[mNow]);
+  const banIn = (f, m) => inBan(f, `${String(m + 1).padStart(2, '0')}-15`);
+  openModal(`<h3 style="margin:0">📅 Av takvimi</h3>
+    <p class="sub" style="margin:2px 0 8px">Hangi balık hangi ay bol? Koyu yeşil = en bol dönem. ⛔ = av yasağı. Bu ay çerçeveli.</p>
+    <div class="seg" style="grid-template-columns:repeat(5,1fr);margin-bottom:10px">${Object.entries(ZONE_TR).map(([k, v]) => `<button data-z="${k}" class="${k === z0 ? 'on' : ''}" style="font-size:12px">${v}</button>`).join('')}</div>
+    <div style="overflow-x:auto"><table class="cal"><tr><th></th>${MONTH_FULL.map((m, i) => `<th${i === mNow ? ' style="color:var(--text)"' : ''}>${m.slice(0, 3)}</th>`).join('')}</tr>
+    ${rows.map(({f, v}) => `<tr><td class="nm"><span class="fl" data-fish="${f.id}" style="cursor:pointer">${f.ad}</span></td>${v.map((x, i) =>
+      `<td class="c${i === mNow ? ' now' : ''}" title="${f.ad} · ${MONTH_FULL[i]} · ${banIn(f, i) ? 'av yasağı' : Math.round(x * 100) + '/100'}"
+        style="background:${banIn(f, i) ? '#3a2226' : x < .08 ? 'rgba(255,255,255,.04)' : scoreColor(Math.round(15 + x * 80))};${x < .08 ? '' : 'opacity:' + (0.35 + x * 0.65)}">${banIn(f, i) ? '⛔' : ''}</td>`).join('')}</tr>`).join('')}
+    </table></div>
+    <p class="note" style="margin-top:8px">Değerler bölgedeki genel bolluk × ayın sezon eğrisidir (balıkçı grupları, hal ve TÜİK av verisinden derlendi).
+      Günlük puan bunun üstüne hava, su ve saat koşullarını ekler. Yasak tarihleri için güncel tebliği kontrol et.</p>`);
+  mbody.querySelectorAll('[data-z]').forEach(b => b.onclick = () => openCalendar(b.dataset.z));
+}
+
+// ---------- Bildirimler ----------
+// Seçilen meralar için önümüzdeki 24 saatte puan eşiği aşılırsa bildirim. Tarayıcı kısıtı: uygulama (ya da yüklü uygulama)
+// açıkken / arka planda yaşarken kontrol eder; telefon tamamen kapalıyken bildirim gelmez.
+function notifCfg(){ return lsGet('bildirim', {spots:[], min:65, target:'', sent:{}}); }
+function openNotif(){
+  const c = notifCfg(), perm = typeof Notification === 'undefined' ? 'yok' : Notification.permission;
+  const cur = state.S && state.S.p && !state.S.p.custom ? state.S.p.n : '';
+  openModal(`<h3 style="margin:0">🔔 Bildirimler</h3>
+    <p class="sub" style="margin:2px 0 8px">Takip ettiğin meralarda önümüzdeki 24 saat içinde puan eşiği aşılınca haber verelim.</p>
+    ${perm === 'yok' ? '<p class="hint">Bu tarayıcı bildirim desteklemiyor. iPhone\'da önce “📲 Telefona yükle” ile ana ekrana ekle.</p>' : ''}
+    ${perm === 'denied' ? '<p class="hint">Bildirim izni kapalı. Tarayıcı ayarlarından bu site için bildirimlere izin ver.</p>' : ''}
+    <div class="fgrid">
+      <label class="fl full"><span>TAKİP ETTİĞİM MERALAR</span>
+        <div id="nfList">${c.spots.length ? c.spots.map(n => `<span class="fchip" style="padding:6px 10px">${n} <b data-del="${n}" style="cursor:pointer;margin-left:4px">✕</b></span>`).join('') : '<span class="sub">Henüz yok.</span>'}</div></label>
+      <label class="fl full"><span>MERA EKLE</span><input id="nfAdd" list="spotList" placeholder="Mera adı" value="${c.spots.includes(cur) ? '' : cur}" autocomplete="off"></label>
+      <label class="fl"><span>HEDEF BALIK</span><select id="nfT">${targetOptions()}</select></label>
+      <label class="fl"><span>EŞİK PUAN</span><select id="nfMin">${[55, 60, 65, 70, 75, 80].map(v => `<option${v === c.min ? ' selected' : ''}>${v}</option>`).join('')}</select></label>
+      <div class="full"><button class="primary" id="nfSave" style="width:100%;height:48px">${perm === 'granted' ? 'Kaydet' : 'İzin ver ve kaydet'}</button></div>
+    </div>
+    <p class="note" style="margin-top:10px">Tarayıcı kuralı gereği kontrol, uygulama açıkken (ya da telefona yüklenmiş uygulama arka planda çalışırken) saatte bir yapılır.</p>`);
+  $('nfT').value = c.target;
+  mbody.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { const k = notifCfg(); k.spots = k.spots.filter(x => x !== b.dataset.del); lsSet('bildirim', k); openNotif(); });
+  $('nfSave').onclick = async () => {
+    const k = notifCfg(), add = $('nfAdd').value.trim();
+    if (add) { if (!SPOTS.some(s => s.n === add)) return alert('Bu isimde kayıtlı mera yok; listeden seç.'); if (!k.spots.includes(add)) k.spots.push(add); }
+    k.min = +$('nfMin').value; k.target = $('nfT').value; lsSet('bildirim', k);
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') await Notification.requestPermission();
+    closeModal(); notifCheck(true);
+  };
+}
+async function notifShow(title, body){
+  try {
+    const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+    if (reg) return reg.showNotification(title, {body, icon:'icon-192.png', badge:'icon-192.png', tag:title});
+    new Notification(title, {body, icon:'icon-192.png'});
+  } catch {}
+}
+async function notifCheck(force){
+  const c = notifCfg();
+  if (!c.spots.length || typeof Notification === 'undefined' || Notification.permission !== 'granted' || navigator.onLine === false) return;
+  if (!force && Date.now() - (lsGet('bildirimAt', 0)) < 55 * 60000) return;
+  lsSet('bildirimAt', Date.now());
+  const spots = c.spots.map(n => SPOTS.find(s => s.n === n)).filter(Boolean);
+  try {
+    const series = await fetchSeries(spots);
+    for (const S of series) {
+      let best = null;
+      for (let i = S.nowIdx; i < Math.min(S.F.hourly.time.length, S.nowIdx + 24); i++) {
+        const H = hourScore(S, i), r = c.target ? H.list.find(x => x.fish.id === c.target) : null;
+        const v = c.target ? (r ? r.adj : 0) : H.score;
+        if (!best || v > best.v) best = {v, t: H.e.time, top: c.target ? FISH_BY_ID[c.target].ad : (H.top[0] ? H.top[0].fish.ad : '')};
+      }
+      const key = S.p.n + '|' + best.t.slice(0, 10);
+      if (best && best.v >= c.min && !c.sent[key]) {
+        c.sent[key] = 1;
+        await notifShow(`🎣 ${S.p.n}: ${best.v} puan`, `${dayLabel(best.t)} ${hh(best.t)} civarı ${best.top} için iyi saat. Dokun, ayrıntıya bak.`);
+      }
+    }
+    const lim = Date.now() - 3 * 86400000;
+    for (const k of Object.keys(c.sent)) if (Date.parse(k.split('|')[1]) < lim) delete c.sent[k];
+    lsSet('bildirim', c);
+  } catch {}
+}
+setInterval(() => notifCheck(), 60 * 60000);
+
+// ---------- Telefona yükleme (PWA) + çevrimdışı ----------
+let installEv = null;
+addEventListener('beforeinstallprompt', ev => { ev.preventDefault(); installEv = ev; });
+function openInstall(){
+  if (installEv) { installEv.prompt(); installEv.userChoice.finally(() => { installEv = null; }); return; }
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const inst = matchMedia('(display-mode: standalone)').matches;
+  openModal(`<h3 style="margin:0">📲 Telefona yükle</h3>
+    ${inst ? '<p class="hint" style="margin-top:8px">✅ Uygulama zaten yüklü ve ana ekrandan açılmış.</p>' : ios
+      ? '<p class="hint" style="margin-top:8px">iPhone/iPad: Safari\'de alttaki <b>Paylaş</b> (□↑) düğmesine dokun → <b>Ana Ekrana Ekle</b>.</p>'
+      : '<p class="hint" style="margin-top:8px">Chrome menüsünden (⋮) <b>Uygulamayı yükle</b> ya da <b>Ana ekrana ekle</b>\'yi seç.</p>'}
+    <p class="note">Yüklenince uygulama gibi tam ekran açılır; internet yokken (sahilde çekim çekmezken) son indirilen tahmin ve harita parçaları gösterilir.</p>`);
+}
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+$('logFab').onclick = () => { closeBars(); openLogForm(); };
+$('logBtn').onclick = openLogList;
+$('calBtn').onclick = () => openCalendar();
+$('notifBtn').onclick = openNotif;
+$('installBtn').onclick = openInstall;
+updateFab(); logSync(); setTimeout(() => notifCheck(), 8000);
 
 drawSpots(); welcome(); renderSpotList();
 </script>

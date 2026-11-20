@@ -51,6 +51,7 @@ def dataset_versions(product, pattern, limit=2):
     if not out: raise RuntimeError(f'ARCO yok: {pattern}')
     return out
 
+_MISS = object()
 UNIT = {'seconds': 1, 'minutes': 60, 'hours': 3600, 'days': 86400}
 class Zarr:
     def __init__(self, base):
@@ -89,6 +90,46 @@ class Zarr:
             sub = sub[:, self.zi % ch[1], yi % ch[-2], xi % ch[-1]] if nd == 4 else sub[:, yi % ch[-2], xi % ch[-1]]
             out[lo - ti0:hi - ti0] = sub
         return out
+    def at(self, var, ti, k, yi, xi):
+        """Tek değer: zaman ti, seviye k (elevation indeksi), hücre (yi, xi)"""
+        ch = self.zarray(var)['chunks']; key = (var, ti, k // ch[1], yi // ch[2], xi // ch[3])
+        # Karadeniz parçası 3552 saat içerir (~3,6 MB); bellekte yalnız istenen saatin dilimi tutulur
+        with self.lock: a = self.pcache.get(key, _MISS) if hasattr(self, 'pcache') else _MISS
+        if a is _MISS:
+            za = self.zarray(var); raw = get(f'{self.base}/{var}/{ti // ch[0]}.{k // ch[1]}.{yi // ch[2]}.{xi // ch[3]}', ok404=True)
+            if raw is None: a = None
+            else:
+                a = np.frombuffer(numcodecs.get_codec(za['compressor']).decode(raw), dtype=za['dtype']).reshape(ch)[ti % ch[0]].astype('float32')
+                a = np.where(np.abs(a) > 1e10, np.nan, a)
+            with self.lock:
+                if not hasattr(self, 'pcache'): self.pcache = {}
+                self.pcache[key] = a
+        return np.nan if a is None else float(a[k % ch[1], yi % ch[2], xi % ch[3]])
+    def levels(self, depths):
+        """İstenen derinliklere (m) en yakın elevation indeksleri, tekrarsız: [(derinlik, k)]"""
+        if not hasattr(self, '_el'): self._el = np.abs(self.coord('elevation'))
+        out, seen = [], set()
+        for d in depths:
+            k = int(np.abs(self._el - d).argmin())
+            if k not in seen: seen.add(k); out.append((round(float(self._el[k]), 1), k))
+        return out
+
+# Sıcaklık profili (termoklin): yüzeyden 100 m'ye. Marmara'da üstte Karadeniz kökenli az tuzlu su (mevsime göre ısınır/soğur),
+# altta yıl boyu ~14–15°C Akdeniz suyu var; arada keskin bir geçiş (termoklin) olur. Dip balıkları yüzeyi değil kendi
+# derinliklerindeki suyu hisseder. Profil, meranın biraz açığındaki ilk "30 m'de suyu olan" model hücresinden okunur
+# (kıyı hücresi çoğu zaman birkaç metre derin, katman göstermez).
+PROFILE_DEPTHS = [1, 3, 5, 8, 10, 12, 15, 20, 25, 30, 40, 50, 60, 80, 100]
+PROFILE_R = {'mrm_tem': 8, 'blk_tem': 3}      # açıkta arama yarıçapı [hücre]: Marmara 500 m → 4 km, Karadeniz 2,5 km → 7,5 km
+def profile(z, ti, la, lo, R):
+    lv = z.levels(PROFILE_DEPTHS); k30 = min(lv, key=lambda x: abs(x[0] - 30))[1]
+    y0, x0 = int(np.abs(z.lat - la).argmin()), int(np.abs(z.lon - lo).argmin())
+    for _, dy, dx in sorted((dy * dy + dx * dx, dy, dx) for dy in range(-R, R + 1) for dx in range(-R, R + 1)):
+        y, x = y0 + dy, x0 + dx
+        if 0 <= y < len(z.lat) and 0 <= x < len(z.lon) and np.isfinite(z.at('thetao', ti, k30, y, x)):
+            prof = [[d, round(v * 10)] for d, k in lv for v in [z.at('thetao', ti, k, y, x)] if np.isfinite(v)]
+            km = round(float(np.hypot((z.lat[y] - la) * 111, (z.lon[x] - lo) * 85)), 1)
+            return {'p': prof, 'km': km}
+    return None
 
 # Uydu su sıcaklığı, sırayla denenir: (ad, adres, arama yarıçapı [hücre]; ~10 km). GitHub sunucusundan upwell'e erişilemediği görüldü.
 SST_SOURCES = [
@@ -213,6 +254,7 @@ def main(src, dst):
         idx = np.clip(np.searchsorted(z.time, targets), 1, len(z.time) - 1)
         idx = np.where(np.abs(z.time[idx - 1] - targets) < np.abs(z.time[idx] - targets), idx - 1, idx)
         return idx, np.abs(z.time[idx] - targets) <= tol
+    prof_out = {}
     def run_set(name, ds, href, vars_, R, targets_spots):
         z = Zarr(href)
         daily = '_P1D' in ds; targets = days + 43200 if daily else hours   # günlük ortalamalar gün ortasına denk gelir
@@ -245,6 +287,9 @@ def main(src, dst):
                         out.append(bias)
                     elif name.endswith('_tem') and n in prev_tb:
                         out[0] = out[0] + prev_tb[n]; out.append(prev_tb[n])
+                    if name in PROFILE_R and good[24]:     # hours[24] = şimdiki saat
+                        try: prof_out[n] = profile(z, int(idx[24]), la, lo, PROFILE_R[name])
+                        except Exception as ex: print('profil alınamadı', n, str(ex)[:120], flush=True)
                     return n, out
             return n, None
         with cf.ThreadPoolExecutor(8) as ex:
@@ -267,6 +312,7 @@ def main(src, dst):
                 elif name.endswith('_tem'):
                     r['t'] = vals[0] * 10
                     if len(vals) > 1 and vals[1] is not None: r['tb'] = round(vals[1], 1)   # uydu düzeltmesi (°C)
+                    if prof_out.get(n): r['tp'] = prof_out[n]   # {'p': [[derinlik m, °C×10], …], 'km': açıklık}
                 elif name.endswith('_sal'): r['sa'] = vals[0] * 10
                 elif name == 'bgc_o2': r['o2'] = vals[0]
                 elif name == 'bgc_kd': r['kd'] = vals[0] * 1000
@@ -283,7 +329,7 @@ def main(src, dst):
     except Exception as ex: print('Akarsu alınamadı:', str(ex)[:300])
     ints = lambda a: [None if x is None or not np.isfinite(x) else int(round(float(x))) for x in a]
     out = {'gen': time.strftime('%Y-%m-%dT%H:%MZ', time.gmtime()), 't0': int(T0), 'd0': int(day0), 'ds': used,
-           's': {n: {k: (v if k in ('src', 'tb', 'qm', 'q') else ints(v)) for k, v in r.items()} for n, r in res.items() if r}}
+           's': {n: {k: (v if k in ('src', 'tb', 'qm', 'q', 'tp') else ints(v)) for k, v in r.items()} for n, r in res.items() if r}}
     tok = __import__('os').environ.get('GFW_TOKEN')
     if tok:
         try: out['gfw'] = load_gfw(tok)
