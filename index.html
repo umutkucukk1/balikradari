@@ -301,6 +301,28 @@
   .dmpop button{margin-top:6px;width:100%;color:#04202a;background:#3cc6d8;border:0;font-weight:700}
   body.dm-on .mapscan{display:none}
   .dmctl .dsel,.dmctl .mini{display:none}
+  .dmctl .lyr .ic{margin-right:3px}
+  /* Telefon alt bölmesi */
+  #dmDock{position:fixed;left:0;right:0;bottom:0;z-index:1200;background:rgba(11,22,32,.97);border-top:1px solid var(--line);
+    padding:6px 8px calc(4px + env(safe-area-inset-bottom));box-shadow:0 -6px 20px rgba(0,0,0,.45);border-radius:14px 14px 0 0}
+  #dmDock .dmctl.dock{display:flex;flex-direction:column;width:auto;max-width:none;background:none;border:0;box-shadow:none;padding:0;border-radius:0}
+  #dmDock .lg{order:1;margin:0 2px 4px} #dmDock .st{order:2} #dmDock .tm{order:3} #dmDock .dys{order:4} #dmDock .lyr{order:5}
+  #dmDock .lg .bar{height:6px}
+  #dmDock .tm{grid-template-columns:38px 32px minmax(0,1fr) 32px auto 32px;gap:6px}
+  #dmDock .tm button{height:34px;border-radius:17px;font-size:15px}
+  #dmDock .tm #dmPlay{background:var(--accent);color:#04202a;border-color:var(--accent)}
+  #dmDock .tl{display:block;font-size:13px;min-width:0}
+  #dmDock .dsel,#dmDock .mini{display:none !important}
+  #dmDock .dys{display:flex;gap:4px;overflow-x:auto;padding:6px 0 2px;scrollbar-width:none}
+  #dmDock .dys button{padding:5px 11px;font-size:12px;border-radius:14px}
+  #dmDock .lyr{display:flex;gap:2px;overflow-x:auto;padding:6px 0 0;margin-top:6px;border-top:1px solid var(--line);scrollbar-width:none}
+  #dmDock .lyr::-webkit-scrollbar,#dmDock .dys::-webkit-scrollbar{display:none}
+  #dmDock .lyr button{flex:none;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:60px;padding:4px 6px;border:0;
+    background:transparent;border-radius:10px;font-size:11px;color:var(--muted);font-weight:600}
+  #dmDock .lyr button .ic{font-size:19px;line-height:1.1;margin:0}
+  #dmDock .lyr button.on{background:rgba(60,198,216,.16);color:var(--accent)}
+  body.dm-on .leaflet-bottom{bottom:var(--dockH,0px) !important}
+  @media (max-width:820px){ body.dm-on #panel,body.dm-on #logFab,body.dm-on .mapscan{display:none !important} }
   /* Telefonda kompakt: gün düğmeleri yerine saat yazısının içinde gün seçici, renk ölçeği ince tek satır, durum yazısı
      yalnız mesaj varken; "–" ile yalnız saat satırına küçülür (tercih hatırlanır) */
   @media (max-width: 820px){
@@ -2437,10 +2459,25 @@ async function loadDeniz(){
   const got = (await Promise.all(DENIZ_URLS.map(u => fetch(u, {cache:'no-cache'}).then(r => r.ok ? r.json() : null).catch(() => null))))
     .filter(d => d && d.s);
   if (got.length) {
-    const nk = d => Object.values(d.s).reduce((a, r) => a + Object.keys(r).length, 0);
-    got.sort((a, b) => nk(b) - nk(a));
+    // En yeni dosya esas alınır (eski bir kopya güncel akıntı/sıcaklığın önüne geçmesin). Daha eski dosyada olup yenisinde
+    // olmayan alanlar (ör. elle üretilmiş bulanıklık) saat/gün kaydırılarak eklenir; 3 günden eski kopya kullanılmaz.
+    got.sort((a, b) => Date.parse(b.gen) - Date.parse(a.gen));
     const d = got[0];
-    for (const o of got.slice(1)) for (const [n, r] of Object.entries(o.s)) if (r.tp && d.s[n] && !d.s[n].tp) d.s[n].tp = r.tp;
+    for (const o of got.slice(1)) {
+      if (Date.parse(d.gen) - Date.parse(o.gen) > 3 * 86400000) continue;
+      const dh = Math.round((d.t0 - o.t0) / 3600), dd = Math.round((d.d0 - o.d0) / 86400);
+      for (const [n, r] of Object.entries(o.s)) {
+        const b = d.s[n]; if (!b) continue;
+        for (const [k, v] of Object.entries(r)) {
+          if (b[k] !== undefined) continue;
+          if (!Array.isArray(v)) { b[k] = v; continue; }
+          const off = k === 'ks' || k === 'q' || k === 'o2' || k === 'kd' ? dd : dh;   // günlük alanlar gün, diğerleri saat kaydırılır
+
+          b[k] = Array.from({length: off >= 0 ? Math.max(0, v.length - off) : v.length}, (_, j) => v[j + off] ?? null);
+          if (!b[k].length) delete b[k];
+        }
+      }
+    }
     idb.set('deniz', {at:Date.now(), d}); return (DENIZ = d);
   }
   return (DENIZ = (c && c.d) || false);
@@ -5369,6 +5406,7 @@ function dmDrawNow(){
   }
   dmLabels(L_, pts, rebuild);
   DM.field = DMV.fc;
+  if (DM.pop && map.hasLayer(DM.pop.pop)) dmPopup(DM.pop.S, time);   // açık mera kutusu saatle birlikte güncellenir
 }
 function dmMask(){
   if (!DM.on || !DMV.fc) return;
@@ -5398,8 +5436,15 @@ function dmPopup(S, time){
       ${row('Su durumu', e.murky ? 'Bulanık' : 'Berrak')}
       ${row('Av puanı', `<span style="color:${scoreColor(c.H.score)}">${c.H.score}</span>${top ? ' · ' + top : ''}`)}</table>
     <button id="dmGo">Ayrıntı ve 7 gün →</button></div>`;
-  const pop = L.popup({maxWidth:300}).setLatLng([S.p.lat, S.p.lng]).setContent(html).openOn(map);
-  setTimeout(() => { const b = $('dmGo'); if (b) b.onclick = () => { map.closePopup(pop); openSpot(S.p, time); }; }, 0);
+  const dockH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--dockH')) || 0;
+  let pop = DM.pop && DM.pop.S === S && map.hasLayer(DM.pop.pop) ? DM.pop.pop : null;
+  if (pop) pop.setContent(html);
+  else {
+    pop = L.popup({maxWidth:280, autoPanPaddingTopLeft:[10, 70], autoPanPaddingBottomRight:[10, dockH + 12]})
+      .setLatLng([S.p.lat, S.p.lng]).setContent(html).openOn(map);
+    DM.pop = {S, pop};
+  }
+  setTimeout(() => { const b = $('dmGo'); if (b) b.onclick = () => { map.closePopup(pop); DM.pop = null; if (isMobile()) dmClose(); openSpot(S.p, time); }; }, 0);
 }
 // Gün düğmeleri: o günün aynı saatine atlar (yoksa günün ilk saatine)
 function dmDays(){
@@ -5430,16 +5475,33 @@ dmCtl.onAdd = () => {
   return d;
 };
 dmCtl.addTo(map);
+// Telefonda kontroller ekranın altındaki tek bölmede (Windy gibi): ince renk ölçeği, oynat + saat çubuğu, gün düğmeleri ve en
+// altta simgeli katman sekmeleri. Harita tam ekran kalır; alt panel canlı veri açıkken gizlenir. Masaüstünde sol altta kutu.
+function dmDock(){
+  let dock = $('dmDock');
+  if (!dock) {
+    dock = document.createElement('div'); dock.id = 'dmDock'; dock.hidden = true; document.body.appendChild(dock);
+    L.DomEvent.disableClickPropagation(dock); L.DomEvent.disableScrollPropagation(dock);
+  }
+  return dock;
+}
+function dmDockSize(){
+  const dock = $('dmDock'), h = dock && !dock.hidden ? dock.offsetHeight : 0;
+  document.documentElement.style.setProperty('--dockH', h + 'px');
+}
 function dmRender(){
-  const d = dmCtl.getContainer();
+  const c = dmCtl.getContainer(), dock = dmDock(), mob = isMobile();
   if (!DM.on) {
-    d.innerHTML = `<button class="dmfab" id="dmFab" title="Rüzgâr, dalga, su sıcaklığı, akıntı… tüm meralarda, saat saat">🌐 Canlı veri</button>`;
+    dock.hidden = true; dock.innerHTML = ''; dmDockSize();
+    c.innerHTML = `<button class="dmfab" id="dmFab" title="Rüzgâr, dalga, su sıcaklığı, akıntı… tüm meralarda, saat saat">🌐 Canlı veri</button>`;
     $('dmFab').onclick = ev => { L.DomEvent.stop(ev); dmOpen(); };
     return;
   }
   if (DM.min === undefined) DM.min = lsGet('dmMin', false);
-  d.innerHTML = `<div class="dmctl${DM.min ? ' min' : ''}">
-    <div class="lyr">${DM_LAYERS.map(l => `<button data-l="${l.id}" class="${l.id === DM.layer ? 'on' : ''}">${l.ic} ${l.ad}</button>`).join('')}</div>
+  const d = mob ? dock : c;
+  if (mob) { c.innerHTML = ''; dock.hidden = false; } else { dock.hidden = true; dock.innerHTML = ''; }
+  d.innerHTML = `<div class="dmctl${mob ? ' dock' : DM.min ? ' min' : ''}">
+    <div class="lyr">${DM_LAYERS.map(l => `<button data-l="${l.id}" class="${l.id === DM.layer ? 'on' : ''}"><span class="ic">${l.ic}</span><span>${l.ad}</span></button>`).join('')}</div>
     <div class="dys" id="dmDays"></div>
     <div class="tm"><button id="dmPlay" title="Oynat">${DM.play ? '⏸' : '▶'}</button>
       <button id="dmPrev" title="Önceki saat" aria-label="Önceki saat">‹</button>
@@ -5450,6 +5512,7 @@ function dmRender(){
     <div class="lg" id="dmLg"></div><div class="st" id="dmSt"></div></div>`;
   d.querySelectorAll('.lyr button').forEach(b => b.onclick = () => {
     DM.layer = b.dataset.l; d.querySelectorAll('.lyr button').forEach(x => x.classList.toggle('on', x === b)); dmDraw();
+    b.scrollIntoView({block:'nearest', inline:'center', behavior:'smooth'});
   });
   $('dmRange').oninput = ev => { DM.t = +ev.target.value; dmDraw(); };
   const step = n => { DM.t = Math.max(0, Math.min(DM.times.length - 1, DM.t + n)); $('dmRange').value = DM.t; dmDraw(); };
@@ -5463,10 +5526,15 @@ function dmRender(){
   $('dmX').onclick = dmClose;
   $('dmMin').onclick = () => { DM.min = !DM.min; lsSet('dmMin', DM.min); d.querySelector('.dmctl').classList.toggle('min', DM.min); $('dmMin').textContent = DM.min ? '▾' : '–'; };
   $('dmDaySel').onchange = ev => { DM.t = +ev.target.value; $('dmRange').value = DM.t; dmDraw(); };
+  if (mob) {
+    const on = d.querySelector('.lyr button.on'); if (on) on.scrollIntoView({block:'nearest', inline:'center'});
+    requestAnimationFrame(() => { dmDockSize(); map.invalidateSize(); });
+  }
 }
 function dmOpen(){
   closeBars();
   DM.on = true; document.body.classList.add('dm-on');
+  if (isMobile() && map.getZoom() >= 10) map.setZoom(map.getZoom() - 1, {animate:false});
   map.removeLayer(spotLayer); map.removeLayer(labelLayer); dmLayer.addTo(map);
   dmRender(); dmTimes(); dmDraw(); dmLoad();
 }
@@ -5475,7 +5543,7 @@ function dmClose(){
   if (DM.play) { clearInterval(DM.play); DM.play = null; }
   dmLayer.clearLayers(); map.removeLayer(dmLayer); DM.field = null; map.closePopup(); dmClear();
   spotLayer.addTo(map); labelLayer.addTo(map); updateLabels();
-  dmRender();
+  dmRender(); DM.pop = null;
 }
 dmRender();
 map.on('moveend', () => { if (DM.on) dmDraw(); });

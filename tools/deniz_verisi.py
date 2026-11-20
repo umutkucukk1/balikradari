@@ -12,6 +12,9 @@ import numpy as np, numcodecs, requests
 
 STAC = 'https://stac.marine.copernicus.eu/metadata'
 PHY, BGC = 'BLKSEA_ANALYSISFORECAST_PHY_007_001', 'BLKSEA_ANALYSISFORECAST_BGC_007_010'
+# Akdeniz (Saros, Gökçeada, Kuzey Ege: Karadeniz modelinin dışında kalan meralar) ve dalga modelleri
+MPHY, MBGC = 'MEDSEA_ANALYSISFORECAST_PHY_006_013', 'MEDSEA_ANALYSISFORECAST_BGC_006_014'
+BWAV, MWAV = 'BLKSEA_ANALYSISFORECAST_WAV_007_003', 'MEDSEA_ANALYSISFORECAST_WAV_006_017'
 # (ad, ürün, veri kümesi deseni, değişkenler, kıyıda en yakın deniz hücresi için arama yarıçapı [hücre])
 SETS = [
     ('mrm_cur', PHY, r'cmems_mod_blk_phy-cur_anfc_mrm-500m_PT1H-i_(\d{6})', ('uo', 'vo'), 4),
@@ -22,6 +25,14 @@ SETS = [
     ('blk_sal', PHY, r'cmems_mod_blk_phy-sal_anfc_2\.5km_PT1H-m_(\d{6})', ('so',), 2),
     ('bgc_o2', BGC, r'cmems_mod_blk_bgc-pp-o2_anfc_2\.5km_P1D-m_(\d{6})', ('o2',), 2),
     ('bgc_kd', BGC, r'cmems_mod_blk_bgc-optics_anfc_2\.5km_P1D-m_(\d{6})', ('kd',), 2),
+    ('med_cur', MPHY, r'cmems_mod_med_phy-cur_anfc_4\.2km-2D_PT1H-m_(\d{6})', ('uo', 'vo'), 2),
+    ('med_tem', MPHY, r'cmems_mod_med_phy-temp_anfc_4\.2km-2D_PT1H-m_(\d{6})', ('thetao',), 2),
+    ('med_sal', MPHY, r'cmems_mod_med_phy-sal_anfc_4\.2km-2D_PT1H-m_(\d{6})', ('so',), 2),
+    ('med_o2', MBGC, r'cmems_mod_med_bgc-bio_anfc_4\.2km_P1D-m_(\d{6})', ('o2',), 2),
+    ('med_kd', MBGC, r'cmems_mod_med_bgc-optics_anfc_4\.2km_P1D-m_(\d{6})', ('kd490',), 2),
+    # Dalga (saatlik): önemli dalga yüksekliği, ortalama geliş yönü, ortalama periyot. Open-Meteo'nun ~25 km'lik dalgasından ince.
+    ('blk_wav', BWAV, r'cmems_mod_blk_wav_anfc_2\.5km_PT1H-i_(\d{6})', ('VHM0', 'VMDR', 'VTM10'), 2),
+    ('med_wav', MWAV, r'cmems_mod_med_wav_anfc_4\.2km_PT1H-i_(\d{6})', ('VHM0', 'VMDR', 'VTM10'), 2),
 ]
 HOURS = 24 * 8          # 24 saat geçmiş + 7 gün
 DAYS = 9
@@ -57,7 +68,9 @@ class Zarr:
     def __init__(self, base):
         self.base, self.meta, self.cache, self.lock = base, json.loads(get(base + '/.zmetadata'))['metadata'], {}, threading.Lock()
         self.lat, self.lon = self.coord('latitude'), self.coord('longitude')
-        el = self.coord('elevation'); self.zi = int(np.abs(el).argmin())          # yüzeye en yakın seviye
+        # Yüzeye en yakın seviye (2B veri kümelerinde derinlik ekseni yok; Akdeniz biyokimyasında adı 'depth')
+        zc = next((c for c in ('elevation', 'depth') if f'{c}/.zarray' in self.meta), None)
+        self.zi = int(np.abs(self.coord(zc)).argmin()) if zc else 0
         u = self.meta['time/.zattrs']['units']; m = re.match(r'(\w+) since (\d{4}-\d\d-\d\d)(?:[ T](\d\d:\d\d(?::\d\d)?))?', u)
         epoch0 = np.datetime64(m.group(2) + 'T' + (m.group(3) or '00:00:00'), 's').astype('int64')
         self.time = epoch0 + self.coord('time').astype('float64') * UNIT[m.group(1)]
@@ -295,7 +308,7 @@ def main(src, dst):
         with cf.ThreadPoolExecutor(8) as ex:
             return list(ex.map(one, targets_spots)), z
     for name, product, pattern, vars_, R in SETS:
-        key = {'cur': 'c', 'tem': 't', 'sal': 'sa', 'o2': 'o2', 'kd': 'kd'}[name.split('_')[1]]
+        key = {'cur': 'c', 'tem': 't', 'sal': 'sa', 'o2': 'o2', 'kd': 'kd', 'wav': 'wh'}[name.split('_')[1]]
         todo = [sp for sp in spots if key not in res[sp[0]]]   # Marmara modelinden gelen mera Karadeniz modelinden tekrar istenmez
         used_here = []
         # En yeni sürüm kapsam içindeki merayı boş bırakırsa bir önceki sürümden tamamlanır
@@ -314,8 +327,10 @@ def main(src, dst):
                     if len(vals) > 1 and vals[1] is not None: r['tb'] = round(vals[1], 1)   # uydu düzeltmesi (°C)
                     if prof_out.get(n): r['tp'] = prof_out[n]   # {'p': [[derinlik m, °C×10], …], 'km': açıklık}
                 elif name.endswith('_sal'): r['sa'] = vals[0] * 10
-                elif name == 'bgc_o2': r['o2'] = vals[0]
-                elif name == 'bgc_kd': r['kd'] = vals[0] * 1000
+                elif name.endswith('_o2'): r['o2'] = vals[0]
+                elif name.endswith('_kd'): r['kd'] = vals[0] * 1000
+                elif name.endswith('_wav'):   # cm, geldiği yön (°), periyot ×10 sn, kaynak
+                    r['wh'], r['wd'], r['wp'], r['ws'] = vals[0] * 100, vals[1], vals[2] * 10, name[:3]
             print(f'{name}: {ds} · {hit}/{len(todo)} mera · {len(z.cache)} parça · {time.time() - t_start:.0f} sn', flush=True)
             if hit: used_here.append(ds)
             inside = [sp for sp in todo if z.lat[0] - .01 <= sp[1] <= z.lat[-1] + .01 and z.lon[0] - .01 <= sp[2] <= z.lon[-1] + .01]
@@ -329,7 +344,7 @@ def main(src, dst):
     except Exception as ex: print('Akarsu alınamadı:', str(ex)[:300])
     ints = lambda a: [None if x is None or not np.isfinite(x) else int(round(float(x))) for x in a]
     out = {'gen': time.strftime('%Y-%m-%dT%H:%MZ', time.gmtime()), 't0': int(T0), 'd0': int(day0), 'ds': used,
-           's': {n: {k: (v if k in ('src', 'tb', 'qm', 'q', 'tp') else ints(v)) for k, v in r.items()} for n, r in res.items() if r}}
+           's': {n: {k: (v if k in ('src', 'tb', 'qm', 'q', 'tp', 'ws') else ints(v)) for k, v in r.items()} for n, r in res.items() if r}}
     tok = __import__('os').environ.get('GFW_TOKEN')
     if tok:
         try: out['gfw'] = load_gfw(tok)
