@@ -20,6 +20,11 @@
     --salt:#2b7bd6; --fresh:#2e9e5b;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  [hidden]{display:none !important}
+  body{overscroll-behavior:none}
+  button,select,input,.fchip,.spot,.opp{touch-action:manipulation}
+  .tab,.mbox{overscroll-behavior:contain}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
     font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
   #app{display:grid;grid-template-columns:1fr 440px;height:100vh;height:100dvh}
@@ -89,6 +94,23 @@
 
   /* Haftalık */
   .day{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden}
+  .daychips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;margin-bottom:2px;-webkit-overflow-scrolling:touch}
+  .daychips button{flex:none;padding:7px 11px;font-size:13px;white-space:nowrap}
+  .daychips button.on{background:var(--accent);color:#04202a;border-color:var(--accent);font-weight:600}
+  .daychips button .ds{display:block;font-size:11px;font-weight:400;opacity:.85}
+  .spk{display:grid;grid-template-columns:92px 1fr;gap:2px 8px;align-items:center;margin-top:2px}
+  .spk .lb{font-size:12px;line-height:1.25}
+  .spk .lb small{display:block;color:var(--muted);font-size:11px}
+  .spk svg{width:100%;height:44px;display:block}
+  .spk .ax{grid-column:2;display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:-2px}
+  .srcs{font-size:11px;color:var(--muted);margin:8px 0 0}
+  .hourchips{display:flex;gap:4px;overflow-x:auto;padding:0 0 10px;-webkit-overflow-scrolling:touch}
+  .hourchips button{flex:none;min-width:40px;padding:6px 4px 4px;font-size:13px;font-variant-numeric:tabular-nums;border-bottom-width:4px}
+  .hourchips button small{display:block;font-size:10px;color:var(--muted)}
+  .hourchips button.on{background:var(--accent);color:#04202a;font-weight:700}
+  .hourchips button.on small{color:#04202a}
+  .hcard h2 .nav{float:right;text-transform:none;letter-spacing:0}
+  .hcard h2 .nav button{padding:2px 10px;margin-left:4px;font-size:13px}
   .day-head{display:flex;align-items:center;gap:10px;padding:10px 12px 6px}
   .day-head .dn{font-weight:700;min-width:84px}
   .day-head .wx{font-size:12px;color:var(--muted);flex:1}
@@ -248,6 +270,55 @@
   .spotlbl.tatli{border-left-color:#2e9e5b}
   .spotlbl:hover{background:#fff;z-index:5}
 
+  /* Canlı veri haritası (Windy benzeri) */
+  .dmfab{height:44px;padding:0 16px;border-radius:22px;border:0;background:var(--panel);color:var(--text);font-size:14px;font-weight:700;
+    box-shadow:0 3px 12px rgba(0,0,0,.45);cursor:pointer;border:1px solid var(--accent)}
+  .dmctl{background:rgba(16,34,48,.95);color:var(--text);border:1px solid var(--line);border-radius:14px;padding:8px 10px 10px;
+    width:560px;max-width:calc(100vw - 480px);box-shadow:0 4px 16px rgba(0,0,0,.5);font-size:12px}
+  .dmctl .lyr{display:flex;gap:5px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch}
+  .dmctl .lyr button{flex:none;padding:5px 9px;font-size:12px;border-radius:16px;white-space:nowrap}
+  .dmctl .lyr button.on{background:var(--accent);color:#04202a;border-color:var(--accent);font-weight:700}
+  .dmctl .tm{display:grid;grid-template-columns:34px 30px minmax(0,1fr) 30px auto 30px;gap:6px;align-items:center}
+  .dmctl .dys{display:flex;gap:4px;overflow-x:auto;padding-bottom:6px}
+  .dmctl .dys button{flex:none;padding:3px 8px;font-size:11px;border-radius:12px;white-space:nowrap}
+  .dmctl .dys button.on{border-color:var(--accent);color:var(--accent);font-weight:700}
+  .dmctl .tm button{height:32px;padding:0;border-radius:16px;font-size:14px}
+  .dmctl .tm input{width:100%;accent-color:var(--accent)}
+  .dmctl .tl{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:92px;text-align:right}
+  .dmctl .lg{display:flex;align-items:center;gap:6px;margin-top:6px;color:var(--muted)}
+  .dmctl .lg .bar{flex:1;height:10px;border-radius:5px}
+  .dmctl .lg .tk{display:flex;justify-content:space-between;font-size:10px;margin-top:2px}
+  .dmctl .st{color:var(--muted);margin-top:4px;min-height:14px}
+  .dmv{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:2px;background:rgba(11,22,32,.82);color:#fff;
+    border:2px solid;border-radius:9px;padding:1px 6px 1px 4px;font:700 11px/1.35 system-ui,sans-serif;white-space:nowrap;
+    box-shadow:0 1px 4px rgba(0,0,0,.4);cursor:pointer;font-variant-numeric:tabular-nums}
+  .dmv i{font-style:normal;display:inline-block;font-size:11px}
+  .dmfield,.dmparts{position:absolute;left:0;top:0;pointer-events:none}
+  .dmv i{transition:transform .35s ease}
+  .dmv{transition:border-color .35s ease}
+  .dmpop{font-size:12px;min-width:190px}
+  .dmpop table{font-size:12px} .dmpop td{padding:2px 4px;border-top:1px solid #e3e8ec;color:#0b1620} .dmpop td:first-child{color:#5b6b75}
+  .dmpop button{margin-top:6px;width:100%;color:#04202a;background:#3cc6d8;border:0;font-weight:700}
+  body.dm-on .mapscan{display:none}
+  .dmctl .dsel,.dmctl .mini{display:none}
+  /* Telefonda kompakt: gün düğmeleri yerine saat yazısının içinde gün seçici, renk ölçeği ince tek satır, durum yazısı
+     yalnız mesaj varken; "–" ile yalnız saat satırına küçülür (tercih hatırlanır) */
+  @media (max-width: 820px){
+    .dmctl{max-width:calc(100vw - 16px);width:calc(100vw - 16px);padding:6px 8px 6px;border-radius:12px}
+    .dmctl .lyr{padding-bottom:5px;gap:4px} .dmctl .lyr button{padding:4px 8px;font-size:12px}
+    .dmctl .dys{display:none}
+    .dmctl .tm{grid-template-columns:30px 26px minmax(0,1fr) 26px auto 26px 26px;gap:4px}
+    .dmctl .tm button{height:30px;font-size:13px}
+    .dmctl .tl{min-width:0;font-size:12px;display:none}
+    .dmctl .dsel{display:block;max-width:104px;height:30px;padding:0 4px;font-size:12px;font-weight:700;border-radius:8px}
+    .dmctl .mini{display:block}
+    .dmctl .lg{margin-top:4px;gap:4px;font-size:10px} .dmctl .lg .bar{height:6px}
+    .dmctl .lg .tk{font-size:9px;margin-top:0}
+    .dmctl .st{margin-top:2px;min-height:0;font-size:11px} .dmctl .st:empty{display:none}
+    .dmctl.min .lyr,.dmctl.min .lg,.dmctl.min .st{display:none}
+  }
+  .leaflet-top.leaflet-left .dmctl,.leaflet-top.leaflet-left .dmfab{margin-top:56px}
+
   /* Av günlüğü düğmesi (haritada sol altta, herkesin göreceği yerde) */
   #logFab{position:absolute;z-index:1000;left:12px;bottom:28px;height:52px;padding:0 18px 0 14px;border-radius:26px;border:0;
     background:#f2c14e;color:#2a1d00;font-size:16px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.45);display:flex;align-items:center;gap:8px}
@@ -330,16 +401,17 @@
       <div id="menu">
         <button id="rateBtn" class="primary">⭐<span class="lbl"> Noktaları puanla</span></button>
         <button id="scanBtn" title="Seçili ilde/görünen alanda deniz ve tatlı su noktalarını tara">🔍 Tara</button>
+        <button id="dataBtn">🌐<span class="lbl"> Canlı veri haritası</span></button>
         <button id="guideBtn">📖 Balık rehberi</button>
         <button id="locBtn" title="Konumum">📍<span class="lbl"> Konumum</span></button>
         <button id="fsBtn" title="Tam ekran">⛶<span class="lbl"> Tam ekran</span></button>
-        <button id="logBtn">📒<span class="lbl"> Av günlüğüm</span></button>
+        <button id="logBtn" hidden>📒<span class="lbl"> Av günlüğüm</span></button>
         <button id="calBtn">📅<span class="lbl"> Av takvimi</span></button>
         <button id="notifBtn">🔔<span class="lbl"> Bildirimler</span></button>
         <button id="installBtn">📲<span class="lbl"> Telefona yükle</span></button>
       </div>
     </div>
-    <button id="logFab" aria-label="Av kaydet">🎣<span>Av kaydet<small>tuttun mu? yaz</small></span></button>
+    <button id="logFab" aria-label="Av kaydet" hidden>🎣<span>Av kaydet<small>tuttun mu? yaz</small></span></button>
   </div>
   <aside id="panel" data-state="min">
     <button id="handle" aria-label="Paneli büyüt/küçült"><span></span></button>
@@ -891,8 +963,22 @@ const fchip = id => `<span class="fchip" data-fish="${id}" title="${FISH_BY_ID[i
 
 // ---------- Balık detay penceresi ----------
 const modal = document.getElementById('modal'), mbody = document.getElementById('mbody');
-function openModal(html){ mbody.innerHTML = html; modal.hidden = false; modal.querySelector('.mbox').scrollTop = 0; hydrate(mbody); }
-function closeModal(){ modal.hidden = true; }
+// Av kaydet düğmeleri şimdilik gizli (20 Kas 2026); true yapılınca haritadaki sarı düğme, menü ve mera kartındaki düğme geri gelir
+const LOG_UI = false;
+function openModal(html){
+  if (modal.hidden && isMobile()) { try { history.pushState({br:'modal'}, ''); } catch {} }
+  mbody.innerHTML = html; modal.hidden = false; modal.querySelector('.mbox').scrollTop = 0; hydrate(mbody);
+}
+function closeModal(fromBack){
+  if (modal.hidden) return;
+  modal.hidden = true;
+  if (!fromBack && history.state && history.state.br === 'modal') { try { history.back(); } catch {} }
+}
+// Geri tuşu: önce açık pencere, sonra büyütülmüş alt panel kapanır; ikisi de yoksa tarayıcının olağan geri davranışı
+addEventListener('popstate', () => {
+  if (!modal.hidden) { closeModal(true); return; }
+  if (isMobile() && panel.dataset.state !== 'min') { panel.dataset.state = 'min'; }
+});
 
 function openFish(id){
   const f = FISH_BY_ID[id], I = INFO[id], fresh = f.water === 'tatli';
@@ -1956,7 +2042,9 @@ function parseLocal(str, off){
 }
 
 function detectSea(lat, lon){
-  if ((lat > 41.15 && lon > 27.4) || (lat > 40.9 && lon > 30)) return 'K';
+  // Şile–Kandıra arası Karadeniz kıyısı 41,1°'ye iner (Ağva 41,13°): eskiden Marmara sayılıyordu. Boğaz'ın doğusunda
+  // (29,17° doğu) 41,05° kuzeyi Karadeniz; Asya yakasının Marmara kıyısı 41,03°'ün altında kalır.
+  if ((lat > 41.15 && lon > 27.4) || (lat > 41.05 && lon > 29.17) || (lat > 40.9 && lon > 30)) return 'K';
   if (lat >= 40.0 && lat <= 41.15 && lon >= 26.7 && lon <= 29.95) return 'M';
   if (lon < 28.3 && lat <= 41) return 'E';
   return null;
@@ -2095,6 +2183,7 @@ async function fetchSeries(pts){
   try { await landBearings(pts.filter(p => !p.anchor)); } catch {}
   try { await loadDeniz(); } catch {}
   try { await loadRaporlar(); } catch {}
+  try { await ecLoad(pts); } catch {}
   // Klorofil en fazla 4 sn beklenir; yetişmeyen sorgular arka planda sürer ve sonraki çizimde önbellekten gelir
   // (çapa noktaları dahil: tarama hücreleri en yakın çapanın değerini kullanır)
   try { await Promise.race([chlFor(pts), new Promise(r => setTimeout(r, 4000))]); } catch {}
@@ -2186,9 +2275,104 @@ async function fetchSeries(pts){
     const {F, M, mFrom} = seriesCache.get(llKey(p));
     const mIdx = new Map();
     if (p.w === 'deniz' && M && M.hourly) M.hourly.time.forEach((t, k) => mIdx.set(t, k));
-    return {p, F, M: p.w === 'deniz' ? M : null, mFrom: p.w === 'deniz' ? mFrom : null, mIdx, off:F.utc_offset_seconds, sol:{},
-      nowIdx: Math.max(0, F.hourly.time.indexOf(now))};
+    const nowIdx = Math.max(0, F.hourly.time.indexOf(now));
+    return {p, F: adjF(p, F, nowIdx), M: p.w === 'deniz' ? M : null, mFrom: p.w === 'deniz' ? mFrom : null, mIdx, off:F.utc_offset_seconds, sol:{},
+      nowIdx};
   });
+}
+
+// ---------- Rüzgâr düzeltmesi ve ECMWF karışımı ----------
+// Kasım 2026 doğrulaması (7 havalimanı, 14 gün, 1 gün önceki tahmin): Open-Meteo'nun varsayılan modeli rüzgârı ortalama
+// 3,6 km/sa, 20+ km/sa'lik rüzgârda ~8 km/sa düşük gösteriyordu; ölçülen 30+ km/sa saatlerin Boğaz'da 153'ünden 25'i,
+// Karadeniz'de 120'sinden 10'u yakalanıyordu ("tekneyle açılma" uyarısı geç kalıyordu). Deniz noktalarında rüzgâr bölgeye göre
+// ölçülen ≈ a × tahmin + b ile düzeltilir. Katsayılar her gece deniz.json'da (wf) son 14 günün ölçümünden yenilenir; yoksa
+// aşağıdaki Kasım 2026 değerleri. Karadeniz ikiye ayrılır: İstanbul–Kocaeli kıyısı (K, İstanbul Havalimanı ölçümü; model
+// orada rüzgârı ~10 km/sa düşük gösteriyor) ve 30,5°D doğusu (D, Zonguldak ölçümü; model neredeyse doğru). Hamle aynı miktar
+// kaydırılır. Tatlı su noktaları için ölçüm yok: düzeltilmez.
+const WIND_FIT0 = {B:[1.06, 5.2], M:[0.92, 3.9], I:[0.8, 2.3], K:[1.5, 4.5], D:[0.8, 2.9], E:[0.91, 3.1]};
+const windZone = p => { const z = seaZone(p.lat, p.lng); return z === 'K' && p.lng >= 30.5 ? 'D' : z; };
+const windFit = z => (DENIZ && DENIZ.wf && DENIZ.wf[z]) || WIND_FIT0[z] || null;
+// ECMWF (9 km, Windy'nin varsayılan modeli) aynı doğrulamada basınç ve yağışta 2. günden sonra daha isabetliydi; iki modelin
+// ortalaması her ufukta tek başına ikisinden de iyi çıktı (2. gün: basınç hatası 0,78 → 0,62 hPa, yağmur isabeti 0,38 → 0,43;
+// sıcaklık 1,14 → 1,05 °C). Rüzgâr karıştırılmaz (ECMWF rüzgârda daha kötüydü). Kota için yalnız açılan meranın ve
+// çevresinin (~10 km halka + 15 km içindeki meralar) ECMWF serisi çekilir; 12 km içindeki her nokta (tarama hücreleri dahil)
+// en yakın ECMWF serisiyle karışır. ECMWF ağırlığı dün ve şu an 0,4 → 24 sa sonra 0,5 → 48 sa ve sonrası 0,6.
+const EC_VARS = ['temperature_2m', 'pressure_msl', 'precipitation'], EC_TTL = 3600000;
+const ecMem = new Map(), ecMiss = new Set();
+const ecKey = (lat, lng) => Math.round(lat * 10) + ',' + Math.round(lng * 10);
+async function ecLoad(pts){
+  const keys = new Set();
+  for (const p of pts) { const a = Math.round(p.lat * 10), b = Math.round(p.lng * 10);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) keys.add((a + i) + ',' + (b + j)); }
+  for (const k of keys) {
+    if (ecMem.has(k) || ecMiss.has(k)) continue;
+    const v = await idb.get('ec:' + k);
+    if (v && Date.now() - v.at < EC_TTL) ecMem.set(k, v); else ecMiss.add(k);
+  }
+}
+async function ecFetch(spot){
+  const ring = [0, 45, 90, 135, 180, 225, 270, 315].map(b => offsetLL(L.latLng(spot.lat, spot.lng), 10000, b));
+  const near = SPOTS.filter(s => Math.hypot((s.lat - spot.lat) * 111, (s.lng - spot.lng) * 85) <= 15);
+  const want = new Map();
+  for (const q of [spot, ...ring, ...near]) {
+    const k = ecKey(q.lat, q.lng), c = ecMem.get(k);
+    if (!want.has(k) && !(c && Date.now() - c.at < EC_TTL)) want.set(k, q);
+  }
+  const list = [...want.entries()].slice(0, 20);
+  if (!list.length) return;
+  const r = arr(await omJson(`https://api.open-meteo.com/v1/forecast?latitude=${list.map(([, q]) => q.lat.toFixed(3)).join(',')}` +
+    `&longitude=${list.map(([, q]) => q.lng.toFixed(3)).join(',')}&hourly=${EC_VARS.join(',')}&models=ecmwf_ifs` +
+    `&past_days=1&forecast_days=7&timezone=Europe%2FIstanbul`));
+  list.forEach(([k, q], i) => {
+    const h = r[i] && r[i].hourly;
+    if (!h || !h.time) return;
+    const v = {at:Date.now(), lat:q.lat, lng:q.lng, time:h.time, h:Object.fromEntries(EC_VARS.map(x => [x, h[x]]))};
+    ecMem.set(k, v); ecMiss.delete(k); idb.set('ec:' + k, v);
+  });
+}
+function ecNear(p){
+  const a = Math.round(p.lat * 10), b = Math.round(p.lng * 10);
+  let best = null, bd = 12;
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+    const v = ecMem.get((a + i) + ',' + (b + j));
+    if (!v || Date.now() - v.at > EC_TTL * 3) continue;
+    const d = Math.hypot((v.lat - p.lat) * 111, (v.lng - p.lng) * 85);
+    if (d < bd) { bd = d; best = v; }
+  }
+  return best;
+}
+// Önbellekteki ham seriyi değiştirmeden, noktaya özel düzeltilmiş kopya (aynı ham seri + ayar için bir kez hesaplanır)
+const adjCache = new WeakMap();
+function adjF(p, F, nowIdx){
+  const fit = p.w === 'deniz' ? windFit(windZone(p)) : null, ec = ecNear(p);
+  if (!fit && !ec) return F;
+  const key = `${fit ? fit[0] + ':' + fit[1] : ''}|${ec ? ec.at + ':' + ec.lat : ''}|${nowIdx}`;
+  let m = adjCache.get(F); if (!m) adjCache.set(F, m = new Map());
+  if (m.has(key)) return m.get(key);
+  const h = F.hourly, H = {...h};
+  if (fit) {
+    H.wind_speed_10m = h.wind_speed_10m.map(v => v == null ? v : Math.round((fit[0] * v + fit[1]) * 10) / 10);
+    H.wind_gusts_10m = h.wind_gusts_10m.map((g, i) => g == null || h.wind_speed_10m[i] == null ? g
+      : Math.max(H.wind_speed_10m[i], Math.round((g + H.wind_speed_10m[i] - h.wind_speed_10m[i]) * 10) / 10));
+  }
+  let mixed = 0;
+  if (ec) {
+    const idx = new Map(ec.time.map((t, k) => [t, k]));
+    for (const x of EC_VARS) {
+      H[x] = h[x].map((v, k) => {
+        const j = idx.get(h.time[k]), y = j == null ? null : ec.h[x][j];
+        if (v == null || y == null) return v;
+        // Geçmiş saatler de (ECMWF serisi dünden başlar) aynı ağırlıkla karışır: yalnız şimdiden sonrası karışsaydı şu anki saatte
+        // basamak oluşur, 3 saatlik basınç değişimi yapay olarak "hızlı yükselen/düşen basınç" çıkardı
+        const w = 0.4 + 0.2 * Math.min(1, Math.max(0, k - nowIdx) / 48);
+        mixed++;
+        return Math.round((v * (1 - w) + y * w) * 100) / 100;
+      });
+    }
+  }
+  const out = {...F, hourly:H, adj:{wind: fit ? `bölgesel düzeltme (×${fit[0]} +${fit[1]})` : null, ec: mixed > 0}};
+  m.set(key, out);
+  return out;
 }
 
 // EMODnet derinlik: negatif = deniz, pozitif = kara. Servis eşzamanlı istekleri reddettiği için sırayla.
@@ -2248,15 +2432,36 @@ async function loadDeniz(){
   if (DENIZ !== null) return DENIZ;
   const c = await idb.get('deniz');
   if (c && Date.now() - c.at < 3 * 3600000) return (DENIZ = c.d);
-  for (const u of DENIZ_URLS) {
-    try {
-      const d = await fetch(u, {cache:'no-cache'}).then(r => r.ok ? r.json() : Promise.reject(r.status));
-      if (d && d.s) { idb.set('deniz', {at:Date.now(), d}); return (DENIZ = d); }
-    } catch {}
+  // İki kaynak birlikte okunur: GitHub (veri dalı; sıcaklık profili/termoklin) ve sitenin yanındaki deniz.json (Netlify'da
+  // dalga, Marmara bulanıklığı vb. ek alanlar). Alanı çok olan esas alınır, diğerinde olup onda olmayan termoklin profili eklenir.
+  const got = (await Promise.all(DENIZ_URLS.map(u => fetch(u, {cache:'no-cache'}).then(r => r.ok ? r.json() : null).catch(() => null))))
+    .filter(d => d && d.s);
+  if (got.length) {
+    const nk = d => Object.values(d.s).reduce((a, r) => a + Object.keys(r).length, 0);
+    got.sort((a, b) => nk(b) - nk(a));
+    const d = got[0];
+    for (const o of got.slice(1)) for (const [n, r] of Object.entries(o.s)) if (r.tp && d.s[n] && !d.s[n].tp) d.s[n].tp = r.tp;
+    idb.set('deniz', {at:Date.now(), d}); return (DENIZ = d);
   }
   return (DENIZ = (c && c.d) || false);
 }
 const median = a => { const v = a.filter(x => x != null).sort((x, y) => x - y); return v.length ? v[v.length >> 1] : null; };
+// Copernicus serisinin son dolu saatindeki Copernicus − Open-Meteo su sıcaklığı farkı (nokta başına bir kez)
+function sstOffset(S, dz){
+  if (S._sOff !== undefined && S._sOffT === DENIZ.gen) return S._sOff;
+  let off = 0;
+  const t = dz.t, mh = S.M && S.M.hourly;
+  if (t && mh && mh.sea_surface_temperature) {
+    let j = t.length - 1; while (j >= 0 && t[j] == null) j--;
+    if (j >= 0) {
+      const loc = new Date((DENIZ.t0 + j * 3600 + S.off) * 1000).toISOString().slice(0, 13) + ':00', k = S.mIdx.get(loc);
+      const om = k != null ? mh.sea_surface_temperature[k] : null;
+      if (om != null) off = Math.max(-3, Math.min(3, t[j] / 10 - om));
+    }
+  }
+  S._sOffT = DENIZ.gen;
+  return (S._sOff = off);
+}
 // Meranın model serisi; tarama hücresi ya da eklenen nokta için aynı deniz bölgesindeki en yakın meranınki (8 km içinde)
 function denizOf(p){
   if (!DENIZ || p.w !== 'deniz') return null;
@@ -2627,15 +2832,23 @@ function envAt(S, i){
   const hk = dz ? Math.round((t0h - DENIZ.t0 * 1000) / 3600000) : null, dk = dz ? Math.floor((t0h - DENIZ.d0 * 1000) / 86400000) : null;
   const dv = (k, j = hk) => dz && dz[k] && j != null && j >= 0 && j < dz[k].length ? dz[k][j] : null;
   const sstM = dv('t') != null ? dv('t') / 10 : null;
-  const sst = sstM ?? mv('sea_surface_temperature');
+  // Copernicus tahmini bittikten sonra (Karadeniz modeli ~4,5 gün, Marmara ~7 gün) Open-Meteo'nun su sıcaklığı, son Copernicus
+  // saatindeki farkla kaydırılır: Kandıra'da Open-Meteo hücresi 13 km açıkta ve 0,7 °C soğuk; kaydırmasız 25 Kasım'da
+  // yapay bir "ani soğuma" çıkıyordu (ve puanı düşürüyordu)
+  const sOff = sstM == null && dz ? sstOffset(S, dz) : 0;
+  const omSst = k => mh && k != null && k >= 0 && mh.sea_surface_temperature && mh.sea_surface_temperature[k] != null ? mh.sea_surface_temperature[k] + sOff : null;
+  const sst = sstM ?? omSst(mk);
   // Su sıcaklığının 24 saatteki değişimi: ani soğuma (poyraz, soğuk su girişi) balığı durgunlaştırır
-  const sst24 = sstM != null ? (dv('t', hk - 24) != null ? dv('t', hk - 24) / 10 : null)
-    : mh && mk != null && mk >= 24 && mh.sea_surface_temperature ? mh.sea_surface_temperature[mk - 24] : null;
+  const sst24 = dv('t', hk - 24) != null ? dv('t', hk - 24) / 10 : mk != null ? omSst(mk - 24) : null;
   // Tuzluluk: meranın 8 günlük olağanından belirgin düşüş = dere/nehir suyu girişi (su bulanık, tatlı su tabakası)
   const sal = dv('sa') != null ? dv('sa') / 10 : null;
   const salDrop = sal != null && dz.saMed != null ? dz.saMed / 10 - sal : null;
   // Karadeniz biyokimya modeli (günlük): yüzey oksijeni (mmol/m³) ve ışık sönümlenmesi kd (1/m, yüksek = bulanık)
   const o2 = dv('o2', dk), kd = dv('kd', dk) != null ? dv('kd', dk) / 1000 : null;
+  // Modeli olmayan Marmara meralarında uydu bulanıklığı (KD490, en fazla 3 günlük ölçüm): meranın son iki aylık ortalamasına
+  // oranı. Mutlak değer kullanılmaz: Marmara'da 0,2–0,4/m olağan, Karadeniz eşiğiyle (0,15) hep "bulanık" çıkardı.
+  const kdSat = kd == null && dv('ks', dk) != null && dz.ksm ? dv('ks', dk) / 1000 : null;
+  const kdRel = kdSat != null ? kdSat / (dz.ksm / 1000) : null;
   // Akarsu debisi (GloFAS, günlük): 12 km içindeki en büyük dere/nehir. Olağanın 2+ katı = taşkın, ağızda su bulanır.
   // Yağmurdan farkı: nehir taşkını yağmurdan 1–3 gün sonra zirve yapar ve günlerce sürer.
   const river = dv('q', dk), riverRel = river != null && dz.qm ? river / dz.qm : null;
@@ -2656,7 +2869,10 @@ function envAt(S, i){
   const isDay = epoch > rise && epoch < set ? 1 : 0;
   const period = tw ? 'twilight' : (isDay ? 'day' : 'night');
 
-  const wave = mv('wave_height'), wind = h.wind_speed_10m[i], windDir = h.wind_direction_10m[i];
+  // Dalga: Karadeniz ve Ege kıyısındaki meralarda Copernicus dalga modeli (2,5 / 4,2 km, kıyıya yakın hücre); Open-Meteo'nun
+  // dalga hücresi bu meralarda 10–25 km açıkta kalıyordu (Şile 15 km). Marmara'yı Copernicus dalga modelleri kapsamıyor.
+  const waveM = dv('wh') != null ? dv('wh') / 100 : null;
+  const wave = waveM ?? mv('wave_height'), wind = h.wind_speed_10m[i], windDir = h.wind_direction_10m[i];
   // Rüzgârın kıyıya göre yönü (p.lb = noktadan karaya doğru yön, bkz. landBearings): +1 denizden karaya (yem ve plankton
   // kıyıya yığılır, su biraz bulanır), −1 karadan denize (su açılır, balık açığa çekilir). Hafif rüzgârda (8 km/s altı)
   // ve kıyıdan uzak açık suda (3 km+) etkisi yok.
@@ -2670,6 +2886,7 @@ function envAt(S, i){
   const turb = water === 'tuzlu'
     ? rain24 / 8 * rainW + (wave ?? 0) / 1.2 + (wind > 30 ? 0.4 : 0) + Math.max(0, onshore ?? 0) * 0.2
       + (salDrop != null && salDrop >= 1.5 ? 0.6 : 0) + (kd != null ? Math.max(0, (kd - 0.15) / 0.15) : 0)
+      + (kdRel != null ? Math.min(1.2, Math.max(0, (kdRel - 1.3) / 0.7)) : 0)
       + (riverRel != null && riverRel >= 2 && river >= 5 ? Math.min(1.2, (riverRel - 1) / 2.5) : 0)
     : rain24 / 6 * ((p.w === 'nehir' || p.w === 'dere') ? 2 : 1) + (wind > 30 ? 0.3 : 0);
   const mi = SunCalc.getMoonIllumination(new Date(epoch)), phase = mi.phase;
@@ -2677,7 +2894,7 @@ function envAt(S, i){
   const moonAlt = SunCalc.getMoonPosition(new Date(epoch), p.lat, p.lng).altitude;
   const moonLight = period === 'night' ? (moonAlt > 0.05 ? mi.fraction * Math.min(1, 0.4 + Math.sin(moonAlt)) * (1 - 0.8 * h.cloud_cover[i] / 100) : 0) : null;
   // Dalganın kıyıya göre yönü (+1 denizden kıyıya vuruyor): kıyıya vuran 30 cm+ dalga köpük hattı oluşturur
-  const waveDir = mv('wave_direction');
+  const waveDir = waveM != null ? dv('wd') : mv('wave_direction');
   const waveOn = water === 'tuzlu' && p.lb != null && waveDir != null && wave != null && wave >= 0.3
     ? Math.cos((waveDir - (p.lb + 180)) * Math.PI / 180) : null;
   // Akıntı: model ~8 km çözünürlükte, kıyıda mutlak değeri kaba (Boğaz'ı olduğundan zayıf, körfezi tek hücre gösterir).
@@ -2699,11 +2916,14 @@ function envAt(S, i){
     ptrend12: i >= 12 ? h.pressure_msl[i] - h.pressure_msl[i-12] : null,
     wind, windDir, onshore, gust:h.wind_gusts_10m[i], code:h.weather_code[i], isDay,
     rain24, period, sunrise:D.sunrise[di], sunset:D.sunset[di],
-    sst, wt, wtd, wave, waveDir, waveOn, moonLight, wavePer:mv('wave_period'),
+    sst, wt, wtd, wave, waveDir, waveOn, moonLight, wavePer: waveM != null ? (dv('wp') != null ? dv('wp') / 10 : null) : mv('wave_period'),
+    waveSrc: waveM != null ? (dz.ws === 'med' ? 'Copernicus Akdeniz (4,2 km)' : 'Copernicus Karadeniz (2,5 km)') : null,
     bottom: water === 'tuzlu' ? bottomOf(p) : null,
     cur, curRel, curDir: curM != null ? dv('cd') : mv('ocean_current_direction'),
-    model: dz && dz.src ? (dz.src === 'mrm' ? 'Copernicus Marmara modeli (500 m)' : 'Copernicus Karadeniz modeli (2,5 km)') + (dz.tb != null ? ' · uydu düzeltmeli' : '') : null,
-    sstModel: sstM != null, sal, salDrop, o2, kd, river, riverRel, riverMed: dz ? dz.qm : null, light: water === 'tuzlu' ? lightOf(p) : null, gfw: water === 'tuzlu' ? gfwNear(p) : null,
+    model: dz && dz.src ? ({mrm:'Copernicus Marmara modeli (500 m)', blk:'Copernicus Karadeniz modeli (2,5 km)', med:'Copernicus Akdeniz modeli (4,2 km)'}[dz.src] || 'Copernicus') + (dz.tb != null ? ' · uydu düzeltmeli' : '') : null,
+    sstModel: sstM != null, sal, salDrop, o2, kd, kdSat, kdRel,
+    sstSrc: sstM != null ? 'Copernicus' : sst != null ? (sOff ? 'Open-Meteo (Copernicus\'e oturtuldu)' : 'Open-Meteo') : null,
+    curSrc: curM != null ? 'Copernicus' : cur != null ? 'Open-Meteo' : null, river, riverRel, riverMed: dz ? dz.qm : null, light: water === 'tuzlu' ? lightOf(p) : null, gfw: water === 'tuzlu' ? gfwNear(p) : null,
     chl: water === 'tuzlu' && p.chl ? p.chl.v : null,
     chlRise: water === 'tuzlu' && p.chl && p.chl.v7 ? p.chl.v / p.chl.v7 : null, chlDay: p.chl ? p.chl.t : null,
     // Kıyı noktalarında genel 6 m varsayımı yerine nokta tipine göre derinlik (mendirek 10, kumsal 4, ağız 3)
@@ -3421,7 +3641,11 @@ document.querySelectorAll('#typeChips button').forEach(b => b.onclick = () => {
 // =====================================================================
 const panel = $('panel');
 const isMobile = () => matchMedia('(max-width:820px)').matches;
-function sheet(st){ if (isMobile()) panel.dataset.state = st; }
+function sheet(st){
+  if (!isMobile()) return;
+  if (st !== 'min' && panel.dataset.state === 'min') { try { history.pushState({br:'sheet'}, ''); } catch {} }
+  panel.dataset.state = st;
+}
 // Tutamak: dokununca aç/kapat (küçük ↔ yarım); yukarı/aşağı kaydırınca kademe değişir
 $('handle').onclick = () => panel.dataset.state = panel.dataset.state === 'min' ? 'half' : 'min';
 {
@@ -3465,7 +3689,7 @@ function welcome(){
     ${sourcesCard()}`;
 }
 function sourcesCard(){
-  return `<div class="card note">${dataFresh()}<b>Veri:</b> Hava — Open-Meteo · Deniz (dalga, su sıcaklığı, akıntı) — Open-Meteo Marine · Klorofil — Copernicus Marine (uydu) · Akıntı, su sıcaklığı, sıcaklık profili (termoklin), tuzluluk, oksijen — Copernicus Marmara (500 m) ve Karadeniz (2,5 km) modelleri · Balıkçı teknesi avcılığı — Global Fishing Watch · Akarsu debisi — GloFAS (Open-Meteo) · Derinlik — EMODnet ·
+  return `<div class="card note">${dataFresh()}<b>Veri:</b> Hava — Open-Meteo (açılan merada ECMWF ile ortalama; deniz rüzgârı havalimanı ölçümleriyle düzeltilir) · Deniz (dalga, su sıcaklığı, akıntı) — Open-Meteo Marine · Dalga (Karadeniz, Ege) — Copernicus dalga modelleri · Klorofil — Copernicus Marine (uydu) · Akıntı, su sıcaklığı, sıcaklık profili (termoklin), tuzluluk, oksijen — Copernicus Marmara (500 m), Karadeniz (2,5 km) ve Akdeniz (4,2 km) modelleri · Bulanıklık (Marmara) — Copernicus uydu (KD490) · Balıkçı teknesi avcılığı — Global Fishing Watch · Akarsu debisi — GloFAS (Open-Meteo) · Derinlik — EMODnet ·
     İl/ilçe sınırı — OpenStreetMap Nominatim · Ay/güneş — SunCalc.<br>
     <b>Nokta kaynakları:</b> <a href="https://istanbul.com/tr/blog/seasonal-picks/fishing-in-istanbul" target="_blank" rel="noopener">istanbul.com</a>,
     <a href="https://bolu.tarimorman.gov.tr/Sayfalar/Detay.aspx?SayfaId=78" target="_blank" rel="noopener">Bolu İl Tarım ve Orman</a>,
@@ -3483,6 +3707,8 @@ async function openSpot(spot, focusTime){
   $('tab-detay').innerHTML = loading(`${spot.n} için canlı veri ve 7 günlük tahmin çekiliyor…`);
   $('tab-hafta').innerHTML = loading('Hazırlanıyor…');
   try {
+    // Açılan mera ve çevresi için ECMWF serisi (karışım); yetişmezse beklenmez, sonraki açılışta önbellekten gelir
+    try { await Promise.race([ecFetch(spot), new Promise(r => setTimeout(r, 6000))]); } catch {}
     const [S] = await fetchSeries([spot]);
     state.S = S;
     liveGoogle(spot).then(ok => { if (ok && state.S && state.S.p === spot) renderDetail(); });
@@ -3579,7 +3805,7 @@ function renderDetail(){
     ${spot.shore != null ? `<p class="sub" style="margin:6px 0 0">${spot.shore <= 150 ? '🎣' : '🚤'} ${fmtShore(spot.shore)}</p>` : ''}
     ${spot.not ? `<p class="sub" style="margin:8px 0 0">💬 ${spot.not}</p>` : ''}
     ${spot.f && spot.f.length ? `<div style="margin-top:6px"><span class="sub">Bilinen türler (dokun, ayrıntı aç):</span><br>${spot.f.map(fchip).join('')}</div>` : ''}
-    <div class="tags"><button class="primary" id="logHere" style="background:#f2c14e;border-color:#f2c14e;color:#2a1d00">🎣 Burada av kaydet</button></div>
+    <div class="tags"${LOG_UI ? '' : ' hidden'}><button class="primary" id="logHere" style="background:#f2c14e;border-color:#f2c14e;color:#2a1d00">🎣 Burada av kaydet</button></div>
   </div>
   <div class="card">
     <h2>${isNow ? 'Şu an' : 'Seçili saat'} · ${dayLabel(e.time)} ${hh(e.time)} · genel av verimi
@@ -3598,14 +3824,16 @@ function renderDetail(){
     ${stat('Basınç', `${Math.round(e.pressure)}`, e.ptrend == null ? 'hPa' : `3 sa: ${e.ptrend > 0 ? '+' : ''}${e.ptrend.toFixed(1)}${e.ptrend12 != null ? ` · 12 sa: ${e.ptrend12 > 0 ? '+' : ''}${e.ptrend12.toFixed(0)}` : ''} hPa`)}
     ${stat('Bulut', `%${e.cloud}`, e.cloud > 70 ? 'kapalı' : e.cloud > 30 ? 'parçalı' : 'açık')}
     ${stat('Ay', `%${e.moonIll}`, moonName(e.moonPhase) + (e.moonLight != null ? (e.moonLight < 0.15 ? ' · gece karanlık' : e.moonLight > 0.6 ? ' · gece aydınlık' : '') : ''))}
-  </div></div>
+  </div>${S.F.adj && (S.F.adj.wind || S.F.adj.ec) ? `<p class="sub" style="margin:6px 0 0">${[
+      S.F.adj.wind ? `Rüzgâr: havalimanı ölçümlerine göre ${S.F.adj.wind}` : '',
+      S.F.adj.ec ? 'Sıcaklık, basınç, yağış: Open-Meteo + ECMWF (Windy\'nin modeli) ortalaması' : ''].filter(Boolean).join(' · ')}</p>` : ''}</div>
   <div class="card"><h2>Su</h2><div class="grid">
     ${stat('Su sıcaklığı', `${e.wt.toFixed(1)}°C`, (e.water === 'tuzlu' && e.sst != null ? (e.sstModel ? e.model : S.mFrom ? `model · ${S.mFrom} km açıktan` : 'ölçüm/model') : 'tahmini') + (e.wtd != null && Math.abs(e.wtd) >= 0.3 ? ` · 24 sa: ${e.wtd > 0 ? '+' : ''}${e.wtd.toFixed(1)}°` : ''))}
     ${e.thermo ? stat('Termoklin', e.thermo.mixed ? 'yok' : `${Math.round(e.thermo.top)}–${Math.round(e.thermo.bot)} m`,
       (e.thermo.mixed ? `su ${Math.round(e.thermo.maxD)} m'ye kadar karışık` : `altı ${fmt1(e.thermo.lowT)}°C`) + (e.thermo.inv ? ' · yüzeyin altında ılık ara katman' : '')
       + ` · ${Math.round(e.thermo.maxD)} m'de ${fmt1(e.thermo.bottomT)}°C · model${e.thermo.km >= 0.5 ? `, ${fmt1(e.thermo.km)} km açık` : ''}`) : ''}
     ${e.wtDip != null && Math.abs(e.wtDip - e.wt) >= 0.3 ? stat('Dipte su', `${fmt1(e.wtDip)}°C`, `${e.depth < 10 ? fmt1(e.depth) : Math.round(e.depth)} m'de · dip balıkları için kullanılır`) : ''}
-    ${e.water === 'tuzlu' ? stat('Dalga', e.wave != null ? `${e.wave.toFixed(1)} m` : '—', e.wavePer ? `${e.wavePer.toFixed(1)} sn · ${dirName(e.waveDir)}` : '') : ''}
+    ${e.water === 'tuzlu' ? stat('Dalga', e.wave != null ? `${e.wave.toFixed(1)} m` : '—', [e.wavePer ? `${e.wavePer.toFixed(1)} sn · ${dirName(e.waveDir)}` : '', e.waveSrc || ''].filter(Boolean).join(' · ')) : ''}
     ${e.water === 'tuzlu' ? stat('Akıntı', e.cur != null ? `${e.cur.toFixed(1)} <small>km/s</small>` : '—', [e.curDir != null ? `${dirName(e.curDir)} yönüne` : '', e.curRel != null ? (e.curRel < 0.9 || e.curRel > 1.1 ? `olağanın ${e.curRel.toFixed(1).replace('.', ',')} katı` : 'olağan seviyede') : '', e.model ? 'Copernicus' : ''].filter(Boolean).join(' · ')) : ''}
     ${e.sal != null ? stat('Tuzluluk', `${e.sal.toFixed(1).replace('.', ',')} <small>‰</small>`, e.salDrop != null && e.salDrop >= 1.5 ? `olağandan ${e.salDrop.toFixed(1).replace('.', ',')} düşük – tatlı su girişi` : e.sal < 20 ? 'Karadeniz suyu (az tuzlu)' : 'Marmara/Akdeniz suyu') : ''}
     ${e.light ? stat('Aydınlatma', {isikli:'Işıklı', olasi:'Muhtemelen ışıklı', karanlik:'Işıksız'}[e.light], e.light === 'olasi' ? 'iskele/liman · OSM\'de bilgi yok' : spot.custom ? 'açık deniz' : 'OpenStreetMap') : ''}
@@ -3616,7 +3844,8 @@ function renderDetail(){
     ${e.water === 'tuzlu' ? stat('Derinlik', `${e.depth < 10 ? e.depth.toFixed(1).replace('.0', '') : Math.round(e.depth)} m`, spot.dNote || seedDepthNote(spot.n) || (spot.custom ? 'EMODnet' : 'tahmini (mera tipinden)')) : ''}
     ${e.water === 'tuzlu' ? stat('Dip', e.bottom ? BOTTOM_TR[e.bottom.t] : 'bilinmiyor', `${e.bottom ? (e.bottom.src === 'senin düzeltmen' ? '✔ senin düzeltmen' : 'tahmin · ' + e.bottom.src) : 'veri yok'} · <button class="linkbtn" id="dipFixBtn">düzelt</button>`) : ''}
     ${e.kd != null ? stat('Görüş mesafesi', `~${fmt1(Math.min(15, 1.7 / e.kd))} m`, (1.7 / e.kd) < 2.5 ? 'çok bulanık' : (1.7 / e.kd) < 5 ? 'orta' : 'berrak') : ''}
-    ${stat('Su durumu', e.murky ? 'Bulanık' : 'Berrak', e.kd != null ? `model · ışık sönümü ${e.kd.toFixed(2).replace('.', ',')}/m` : e.riverRel >= 2 && e.river >= 5 ? 'tahmini · akarsu taşkını' : e.salDrop != null && e.salDrop >= 1.5 ? 'tahmini · tatlı su girişi' : 'tahmini')}
+    ${stat('Su durumu', e.murky ? 'Bulanık' : 'Berrak', e.kd != null ? `model · ışık sönümü ${e.kd.toFixed(2).replace('.', ',')}/m` :
+      e.kdRel != null ? `uydu · ışık sönümü olağanın ${e.kdRel.toFixed(1).replace('.', ',')} katı` : e.riverRel >= 2 && e.river >= 5 ? 'tahmini · akarsu taşkını' : e.salDrop != null && e.salDrop >= 1.5 ? 'tahmini · tatlı su girişi' : 'tahmini')}
     ${stat('Işık', {day:'Gündüz', night:'Gece', twilight:'Alacakaranlık'}[e.period], `☀ ${hh(e.sunrise)} – ${hh(e.sunset)}`)}
   </div>
   <div class="tags">
@@ -3707,6 +3936,12 @@ function renderWeek(){
   });
   const byDay = new Map();
   hours.forEach((h, k) => { const d = h.e.time.slice(0, 10); if (!byDay.has(d)) byDay.set(d, []); byDay.get(d).push({...h, k}); });
+  // Gün seçimi: "Tüm hafta" ya da tek gün (o günün tüm hava ve su verileri, grafikler ve saat saat tablo)
+  if (state.weekDay && !byDay.has(state.weekDay)) state.weekDay = '';
+  const chips = `<div class="daychips">${[['', 'Tüm hafta', '7 gün'], ...[...byDay.keys()].map(d => {
+      const l = byDay.get(d), avg = Math.round(l.reduce((a, h) => a + h.score, 0) / l.length);
+      return [d, dayLabel(d + 'T00'), `${wIcon(Math.max(...l.filter(h => h.e.isDay).map(h => h.e.code).concat(l[0].e.code)))} ${Math.round(Math.max(...l.map(h => h.e.temp)))}° · ${avg}`];
+    })].map(([d, a, b]) => `<button data-day="${d}" class="${(state.weekDay || '') === d ? 'on' : ''}">${a}<span class="ds">${b}</span></button>`).join('')}</div>`;
 
   const bestW = windows(hours, true, 4), worstW = windows(hours, false, 3);
   const winRow = w => {
@@ -3717,13 +3952,27 @@ function renderWeek(){
       <div class="s" style="color:${scoreColor(w.score)}">${w.score}</div></div>`;
   };
 
-  let html = solunarTableHtml(S, [...byDay.keys()]) +
+  // Seçili günde saat seçimi: Anlık sekmesiyle aynı seçili saat (state.sel); gün değişince o günün aynı saati, yoksa 12:00
+  let hourPart = '';
+  if (state.weekDay) {
+    const dl = byDay.get(state.weekDay);
+    if (!dl.some(h => h.k === state.sel)) {
+      const want = state.hours[state.sel] ? state.hours[state.sel].e.time.slice(11, 13) : '12';
+      const pickH = dl.find(h => h.e.time.slice(11, 13) === want) || dl.find(h => h.e.time.slice(11, 13) === '12') || dl[0];
+      state.sel = pickH.k; renderDetail();
+    }
+    const H = dl.find(h => h.k === state.sel);
+    hourPart = `<div class="hourchips">${dl.map(h => `<button data-hk="${h.k}" class="${h.k === state.sel ? 'on' : ''}" style="border-bottom-color:${scoreColor(h.score)}"
+      title="${hh(h.e.time)} · puan ${h.score}">${h.e.time.slice(11, 13)}<small>${wIcon(h.e.code, h.e.isDay)}</small></button>`).join('')}</div>` + hourDataHtml(S, H, dl);
+  }
+  let html = chips + (state.weekDay ? hourPart + dayDetailHtml(S, byDay.get(state.weekDay)) + solunarTableHtml(S, [state.weekDay]) : solunarTableHtml(S, [...byDay.keys()]) +
     `<div class="card"><h2>${S.p.n} · ${tgt ? `🎯 ${tgt.ad} için ` : ''}haftanın en verimli zamanları</h2>${bestW.map(winRow).join('')}</div>
     <div class="card"><h2>En verimsiz zamanlar</h2>${worstW.map(winRow).join('')}</div>
     <div class="legend">${[[75,'Çok verimli'],[60,'Verimli'],[45,'Orta'],[30,'Zayıf'],[10,'Verimsiz']].map(([s, l]) => `<span><i style="background:${scoreColor(s)}"></i>${l}</span>`).join('')}</div>
-    <p class="note">Renkli kutucuklara dokununca o saatin balık ve yem önerisi açılır.</p>`;
+    <p class="note">Renkli kutucuklara dokununca o saatin balık ve yem önerisi açılır.</p>`);
 
   for (const [date, list] of byDay) {
+    if (state.weekDay && date !== state.weekDay) continue;
     const pad = 24 - list.length, e0 = list[0].e;
     const temps = list.map(h => h.e.temp), winds = list.map(h => h.e.wind);
     const rain = list.reduce((a, h) => a + (h.e.precip || 0), 0);
@@ -3742,22 +3991,166 @@ function renderWeek(){
       <div class="hours">${Array.from({length:24}, (_, x) => `<span>${x % 6 === 0 ? String(x).padStart(2, '0') : ''}</span>`).join('')}</div>
       <div class="wins"><span class="g">▲ En iyi: ${bw.map(w => `${winText(w)} (${w.score})`).join(', ')}</span><br>
         <span class="b">▼ En kötü: ${ww.map(w => `${winText(w)} (${w.score})`).join(', ')}</span></div>
-      <details class="hourly"><summary>Saat saat tablo</summary><div class="tw"><table>
+      ${state.weekDay ? fullTableHtml(S, list) : `<details class="hourly"><summary>Saat saat tablo</summary><div class="tw"><table>
         <tr><th>Saat</th><th></th><th>°C</th><th>Rüzgâr</th><th>Yağış</th>${S.p.w === 'deniz' ? '<th>Dalga</th>' : ''}<th>Puan</th><th>Öne çıkan</th></tr>
         ${list.map(h => `<tr><td>${hh(h.e.time)}</td><td>${wIcon(h.e.code, h.e.isDay)}</td><td>${Math.round(h.e.temp)}</td>
           <td>${Math.round(h.e.wind)} ${dirName(h.e.windDir)}</td><td>${h.e.precip ? h.e.precip.toFixed(1) : '–'}</td>
           ${S.p.w === 'deniz' ? `<td>${h.e.wave != null ? h.e.wave.toFixed(1) : '–'}</td>` : ''}
           <td class="sc" style="color:${scoreColor(h.score)}">${h.score}</td><td>${h.top[0] ? h.top[0].fish.ad : '–'}</td></tr>`).join('')}
-      </table></div></details>
+      </table></div></details>`}
     </div>`;
   }
   html += `<p class="note">Saatlik puan: o saatteki en olası 3 türün puan ortalaması × olumlu şartlar (ay geçişi, alacakaranlık, düşen basınç)
     × olumsuz şartlar (fırtına ve ±2 saati, sert rüzgâr, kuvvetli yağış, dalga, güneşli öğle). 4. günden sonra tahmin belirsizleştiği için her gün %4 kırpılır.</p>`;
   $('tab-hafta').innerHTML = html;
   hydrate($('tab-hafta'));
-  $('tab-hafta').querySelectorAll('.strip button[data-k]').forEach(b => b.onclick = () => {
+  $('tab-hafta').querySelectorAll('.strip button[data-k], .tw tr[data-k]').forEach(b => b.onclick = () => {
     state.sel = +b.dataset.k; renderDetail(); renderWeek(); showTab('detay');
   });
+  $('tab-hafta').querySelectorAll('.daychips button').forEach(b => b.onclick = () => {
+    state.weekDay = b.dataset.day; renderWeek(); $('tab-hafta').scrollTop = 0;
+  });
+  // Saat seçimi sekmede kalır (o saatin tüm verileri aşağıda); Anlık sekmesi de aynı saate geçer
+  const pickHour = k => { const top = $('tab-hafta').scrollTop; state.sel = k; renderDetail(); renderWeek(); $('tab-hafta').scrollTop = top; };
+  $('tab-hafta').querySelectorAll('.hourchips button').forEach(b => b.onclick = () => pickHour(+b.dataset.hk));
+  $('tab-hafta').querySelectorAll('.hcard [data-step]').forEach(b => b.onclick = () => {
+    const k = state.sel + +b.dataset.step; if (!state.hours[k]) return;
+    const d = state.hours[k].e.time.slice(0, 10);
+    if (d !== state.weekDay) state.weekDay = d;
+    pickHour(k);
+  });
+  const toAnlik = $('hcGo'); if (toAnlik) toAnlik.onclick = () => showTab('detay');
+  for (const sel of ['.daychips button.on', '.hourchips button.on']) {
+    const on = $('tab-hafta').querySelector(sel);
+    if (on) on.parentElement.scrollLeft = on.offsetLeft - on.parentElement.clientWidth / 2 + on.offsetWidth / 2;
+  }
+}
+
+// ---------- Seçilen saatin tüm hava ve su verileri (7 gün sekmesi) ----------
+function hourDataHtml(S, H){
+  const e = H.e, sea = S.p.w === 'deniz';
+  const top = (H.list || []).slice(0, 3);
+  return `<div class="card hcard"><h2>${dayLabel(e.time)} ${hh(e.time)} · tüm veriler
+      <span class="nav"><button data-step="-1" ${H.k <= 0 ? 'disabled' : ''} aria-label="Önceki saat">◀</button><button data-step="1" ${H.k >= state.hours.length - 1 ? 'disabled' : ''} aria-label="Sonraki saat">▶</button></span></h2>
+    <div class="big" style="margin-bottom:8px"><div class="num" style="color:${scoreColor(H.score)}">${H.score}</div>
+      <div><b>${scoreLabel(H.score)}</b><div class="sub">${top.map(r => `${r.fish.ad} ${r.adj ?? r.score}`).join(' · ') || '–'}</div></div></div>
+    <div class="grid">
+    ${stat('Hava', `${wIcon(e.code, e.isDay)} ${Math.round(e.temp)}°C`, WCODES[e.code] || '')}
+    ${stat('Rüzgâr', `${Math.round(e.wind)} <small>km/s</small>`, `${e.windDir != null ? arrow(e.windDir) + ' ' + dirName(e.windDir) : ''} · hamle ${Math.round(e.gust)}`)}
+    ${stat('Yağış', `${fmt(e.precip || 0, 1)} <small>mm</small>`, `son 24 sa: ${fmt(e.rain24, 1)} mm`)}
+    ${stat('Basınç', `${Math.round(e.pressure)}`, e.ptrend == null ? 'hPa' : `3 sa: ${e.ptrend > 0 ? '+' : ''}${fmt(e.ptrend, 1)} hPa`)}
+    ${stat('Bulut', `%${e.cloud}`, e.cloud > 70 ? 'kapalı' : e.cloud > 30 ? 'parçalı' : 'açık')}
+    ${stat('Işık', {day:'Gündüz', night:'Gece', twilight:'Alacakaranlık'}[e.period], e.moonLight != null ? (e.moonLight < 0.15 ? 'karanlık gece' : e.moonLight > 0.6 ? 'ay ışıklı' : 'loş') + ` · ay %${e.moonIll}` : `ay %${e.moonIll}`)}
+    ${stat('Su sıcaklığı', `${fmt(e.wt, 1)}°C`, sea ? (e.sstSrc || 'tahmini') + (e.wtd != null && Math.abs(e.wtd) >= 0.3 ? ` · 24 sa: ${e.wtd > 0 ? '+' : ''}${fmt(e.wtd, 1)}°` : '') : 'tahmini')}
+    ${sea ? stat('Dalga', e.wave != null ? `${fmt(e.wave, 1)} m` : '—', [e.wavePer ? `${fmt(e.wavePer, 1)} sn` : '', e.waveDir != null ? `${dirName(e.waveDir)}'den` : '', e.waveSrc ? 'Copernicus' : 'Open-Meteo'].filter(Boolean).join(' · ')) : ''}
+    ${sea ? stat('Akıntı', e.cur != null ? `${fmt(e.cur, 1)} <small>km/s</small>` : '—', [e.curDir != null ? `${dirName(e.curDir)} yönüne` : '', e.curRel != null && (e.curRel < 0.9 || e.curRel > 1.1) ? `olağanın ${fmt(e.curRel, 1)} katı` : '', e.curSrc || ''].filter(Boolean).join(' · ')) : ''}
+    ${e.sal != null ? stat('Tuzluluk', `${fmt(e.sal, 1)} <small>‰</small>`, e.salDrop >= 1.5 ? 'olağandan düşük' : 'olağan') : ''}
+    ${e.o2 != null ? stat('Oksijen', `${e.o2} <small>mmol/m³</small>`, e.o2 < 180 ? 'düşük' : 'yeterli') : ''}
+    ${stat('Su durumu', e.murky ? 'Bulanık' : 'Berrak', e.kd != null ? `ışık sönümü ${fmt(e.kd, 2)}/m` : e.kdRel != null ? `uydu · olağanın ${fmt(e.kdRel, 1)} katı` : 'tahmini')}
+    ${e.river != null ? stat('Akarsu', `${fmt(e.river, e.river < 10 ? 1 : 0)} <small>m³/s</small>`, e.riverRel >= 2 ? 'taşkın' : 'normal') : ''}
+    </div><button id="hcGo" style="margin-top:10px;width:100%">Bu saatin yem ve takım önerisi (Anlık) →</button></div>`;
+}
+
+// ---------- Seçilen günün tüm hava ve su verileri ----------
+const fmt = (x, d = 0) => x == null ? '–' : x.toFixed(d).replace('.', ',');
+const nn = a => a.filter(x => x != null && !Number.isNaN(x));
+const mn = a => nn(a).length ? Math.min(...nn(a)) : null, mx = a => nn(a).length ? Math.max(...nn(a)) : null;
+const avgOf = a => nn(a).length ? nn(a).reduce((s, x) => s + x, 0) / nn(a).length : null;
+// Yönlerin ortalaması (hıza göre ağırlıklı vektör ortalaması); dağınıksa null
+function meanDir(dirs, w){
+  let x = 0, y = 0, t = 0;
+  dirs.forEach((d, i) => { if (d == null) return; const k = w ? (w[i] || 0) : 1; x += Math.sin(d * Math.PI / 180) * k; y += Math.cos(d * Math.PI / 180) * k; t += k; });
+  return t && Math.hypot(x, y) / t > 0.3 ? (Math.atan2(x, y) * 180 / Math.PI + 360) % 360 : null;
+}
+const rangeTxt = (a, d = 0, u = '') => mn(a) == null ? '–' : (fmt(mn(a), d) === fmt(mx(a), d) ? fmt(mn(a), d) : `${fmt(mn(a), d)}–${fmt(mx(a), d)}`) + u;
+// Kaynaklar: gün içinde değişiyorsa saat aralığıyla ("Copernicus 00–22, Open-Meteo 23–")
+function srcTxt(list, key){
+  const seg = [];
+  list.forEach(h => { const v = h.e[key]; if (!v) return; const l = seg[seg.length - 1]; if (l && l.v === v) l.b = h.e.time; else seg.push({v, a:h.e.time, b:h.e.time}); });
+  return seg.length <= 1 ? (seg[0] ? seg[0].v : '') : seg.map(x => `${x.v} ${hh(x.a)}–${hh(x.b)}`).join(', ');
+}
+// Küçük saat saat grafik (x ekseni günün saati: bugün yalnız şu andan sonrası dolar)
+function sparkRow(label, list, get, {d = 0, u = '', get2 = null, color = 'var(--accent)'} = {}){
+  const v = list.map(h => get(h.e, h)), v2 = get2 ? list.map(h => get2(h.e, h)) : [];
+  const all = nn([...v, ...v2]);
+  if (all.length < 2) return '';
+  let lo = Math.min(...all), hi = Math.max(...all);
+  if (hi - lo < 1e-6) { lo -= 1; hi += 1; }
+  const W = 300, H = 44, X = h => +h.e.time.slice(11, 13) / 23 * W, Y = x => H - 5 - (x - lo) / (hi - lo) * (H - 10);
+  const path = vals => { let p = '', pen = false; vals.forEach((x, i) => { if (x == null) { pen = false; return; } p += `${pen ? 'L' : 'M'}${X(list[i]).toFixed(1)} ${Y(x).toFixed(1)}`; pen = true; }); return p; };
+  const k = v.indexOf(mx(v)), j = v.indexOf(mn(v));
+  return `<div class="lb">${label}<small>${rangeTxt(v, d, u)}</small></div>
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="${label}">
+      <line x1="0" x2="${W}" y1="${H - 1}" y2="${H - 1}" stroke="var(--line)"/>
+      ${get2 ? `<path d="${path(v2)}" fill="none" stroke="${color}" stroke-opacity=".45" stroke-width="1.5" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/>` : ''}
+      <path d="${path(v)}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke"/>
+      ${k >= 0 ? `<circle cx="${X(list[k])}" cy="${Y(v[k])}" r="2.5" fill="${color}"/>` : ''}${j >= 0 && j !== k ? `<circle cx="${X(list[j])}" cy="${Y(v[j])}" r="2.5" fill="${color}" fill-opacity=".5"/>` : ''}
+    </svg>`;
+}
+function dayDetailHtml(S, list){
+  const E = list.map(h => h.e), e0 = E[0], sea = S.p.w === 'deniz', date = e0.time.slice(0, 10);
+  const pick = k => E.map(e => e[k]);
+  const rain = nn(pick('precip')).reduce((a, x) => a + x, 0), wet = E.filter(e => e.precip >= 0.1).length;
+  const press = pick('pressure'), pd = press[press.length - 1] - press[0];
+  const wd = meanDir(pick('windDir'), pick('wind'));
+  const codes = E.filter(e => e.isDay).map(e => e.code), code = codes.length ? Math.max(...codes) : e0.code;
+  const D = S.F.daily, di = D.time.indexOf(date);
+  const ill = SunCalc.getMoonIllumination(new Date(date + 'T21:00:00+03:00'));
+  const partial = list.length < 24 ? `<p class="srcs">Bugün: yalnız ${hh(e0.time)} sonrası.</p>` : '';
+  let h = `<div class="card"><h2>${dayLabel(date + 'T00')} · Hava</h2><div class="grid">
+    ${stat('Hava', `${wIcon(code)} ${rangeTxt(pick('temp'), 0, '°C')}`, WCODES[code] || '')}
+    ${stat('Rüzgâr', `${fmt(avgOf(pick('wind')))}<small>–${fmt(mx(pick('wind')))} km/s</small>`, `ort.–en çok${wd != null ? ` · ${arrow(wd)} ${dirName(wd)}` : ' · değişken yön'}`)}
+    ${stat('Hamle', `${fmt(mx(pick('gust')))} <small>km/s</small>`, 'en kuvvetli')}
+    ${stat('Yağış', `${fmt(rain, 1)} <small>mm</small>`, wet ? `${wet} saat yağışlı` : 'yağış yok')}
+    ${stat('Basınç', rangeTxt(press, 0), `gün içinde ${pd > 0 ? '+' : ''}${fmt(pd, 1)} hPa`)}
+    ${stat('Bulut', `%${fmt(avgOf(pick('cloud')))}`, `en az %${fmt(mn(pick('cloud')))} · en çok %${fmt(mx(pick('cloud')))}`)}
+    ${di >= 0 ? stat('Güneş', `${hh(D.sunrise[di])}–${hh(D.sunset[di])}`, 'doğuş–batış') : ''}
+    ${stat('Ay', `%${Math.round(ill.fraction * 100)}`, moonName(ill.phase))}
+    ${stat('Alacakaranlık', E.filter(e => e.period === 'twilight').length + ' sa', 'av saati')}
+  </div>${S.F.adj && (S.F.adj.wind || S.F.adj.ec) ? `<p class="srcs">${[S.F.adj.wind ? 'Rüzgâr: ' + S.F.adj.wind : '', S.F.adj.ec ? 'Sıcaklık/basınç/yağış: Open-Meteo + ECMWF' : ''].filter(Boolean).join(' · ')}</p>` : ''}${partial}</div>`;
+  if (sea) {
+    const wt = pick('wt'), wave = pick('wave'), cur = pick('cur'), sal = pick('sal');
+    const wvd = meanDir(pick('waveDir'), wave), cd = meanDir(pick('curDir'), cur);
+    const per = nn(pick('wavePer')), murkyH = E.filter(e => e.murky).length;
+    const kd = E.find(e => e.kd != null), kr = E.find(e => e.kdRel != null), o2 = E.find(e => e.o2 != null), rv = E.find(e => e.river != null);
+    const sd = nn(wt).length >= 2 ? nn(wt)[nn(wt).length - 1] - nn(wt)[0] : null;
+    h += `<div class="card"><h2>${dayLabel(date + 'T00')} · Su</h2><div class="grid">
+      ${stat('Su sıcaklığı', rangeTxt(wt, 1, '°C'), sd != null && Math.abs(sd) >= 0.2 ? `gün içinde ${sd > 0 ? '+' : ''}${fmt(sd, 1)}°` : 'gün içinde sabit')}
+      ${stat('Dalga', rangeTxt(wave, 1, ' m'), [per.length ? `${fmt(avgOf(per), 1)} sn` : '', wvd != null ? `${dirName(wvd)}'den` : ''].filter(Boolean).join(' · '))}
+      ${stat('Akıntı', rangeTxt(cur, 1, ' km/s'), cd != null ? `${arrow(cd + 180)} ${dirName(cd)} yönüne` : 'yön değişken')}
+      ${nn(sal).length ? stat('Tuzluluk', rangeTxt(sal, 1, ' ‰'), E.some(e => e.salDrop >= 1.5) ? 'olağandan düşük – tatlı su girişi' : 'olağan') : ''}
+      ${o2 ? stat('Oksijen', `${o2.o2} <small>mmol/m³</small>`, o2.o2 < 180 ? 'düşük' : 'yeterli') : ''}
+      ${stat('Su durumu', murkyH ? `${murkyH} sa bulanık` : 'Berrak', kd ? `ışık sönümü ${fmt(kd.kd, 2)}/m` : kr ? `uydu · olağanın ${fmt(kr.kdRel, 1)} katı` : 'tahmini')}
+      ${rv ? stat('Akarsu', `${fmt(rv.river, rv.river < 10 ? 1 : 0)} <small>m³/s</small>`, rv.riverRel >= 2 ? 'taşkın – ağızda bulanık' : rv.riverRel >= 1.3 ? 'olağandan yüksek' : 'normal') : ''}
+      ${e0.chl != null ? stat('Klorofil', `${fmt(e0.chl, 1)} <small>mg/m³</small>`, `uydu · ${e0.chlDay.slice(8, 10)}.${e0.chlDay.slice(5, 7)}`) : ''}
+      ${e0.gfw ? stat('Gırgır avı', e0.gfw.h ? `${e0.gfw.n} <small>tekne</small>` : 'yok', '12 km · son hafta') : ''}
+    </div><p class="srcs">${[['Su sıcaklığı', srcTxt(list, 'sstSrc')], ['Dalga', srcTxt(list, 'waveSrc') || 'Open-Meteo'], ['Akıntı', srcTxt(list, 'curSrc')]]
+      .filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(' · ')}</p></div>`;
+  }
+  h += `<div class="card"><h2>Saat saat grafik</h2><div class="spk">
+    ${sparkRow('Hava °C', list, e => e.temp, {d:0, u:'°'})}
+    ${sparkRow('Rüzgâr', list, e => e.wind, {u:' km/s', get2: e => e.gust})}
+    ${sparkRow('Yağış', list, e => e.precip, {d:1, u:' mm', color:'#6aa9ff'})}
+    ${sparkRow('Basınç', list, e => e.pressure, {u:' hPa', color:'#c792ea'})}
+    ${sea ? sparkRow('Su °C', list, e => e.wt, {d:1, u:'°', color:'#ffb86b'}) : ''}
+    ${sea ? sparkRow('Dalga', list, e => e.wave, {d:1, u:' m', color:'#4fd18b'}) : ''}
+    ${sea ? sparkRow('Akıntı', list, e => e.cur, {d:1, u:' km/s', color:'#f2c14e'}) : ''}
+    ${sparkRow('Av puanı', list, (e, h) => h.score, {color:'#9bd34a'})}
+    <div class="ax"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>
+  </div><p class="srcs">Rüzgâr grafiğinde kesikli çizgi hamle.</p></div>`;
+  return h;
+}
+function fullTableHtml(S, list){
+  const sea = S.p.w === 'deniz';
+  return `<div class="hourly"><div class="tw"><table>
+    <tr><th>Saat</th><th></th><th>°C</th><th>Rüzgâr</th><th>Hamle</th><th>Yağış</th><th>Bulut</th><th>Basınç</th>
+      ${sea ? '<th>Su °C</th><th>Dalga</th><th>Akıntı</th><th>Tuz ‰</th>' : '<th>Su °C</th>'}<th>Puan</th><th>Öne çıkan</th></tr>
+    ${list.map(h => { const e = h.e; return `<tr data-k="${h.k}" style="cursor:pointer"><td>${hh(e.time)}</td><td>${wIcon(e.code, e.isDay)}</td><td>${Math.round(e.temp)}</td>
+      <td>${Math.round(e.wind)} ${dirName(e.windDir)}</td><td>${Math.round(e.gust)}</td><td>${e.precip ? fmt(e.precip, 1) : '–'}</td><td>${e.cloud}</td><td>${Math.round(e.pressure)}</td>
+      <td>${fmt(e.wt, 1)}</td>${sea ? `<td>${e.wave != null ? `${fmt(e.wave, 1)} ${e.waveDir != null ? dirName(e.waveDir) : ''}` : '–'}</td>
+      <td>${e.cur != null ? `${fmt(e.cur, 1)} ${e.curDir != null ? dirName(e.curDir) : ''}` : '–'}</td><td>${fmt(e.sal, 1)}</td>` : ''}
+      <td class="sc" style="color:${scoreColor(h.score)}">${h.score}</td><td>${h.top[0] ? h.top[0].fish.ad : '–'}</td></tr>`; }).join('')}
+  </table></div><p class="srcs" style="padding:0 12px 10px">Satıra dokununca o saatin ayrıntısı açılır.</p></div>`;
 }
 
 // ---------- Noktalar listesi ----------
@@ -3882,28 +4275,38 @@ function morph(a, W, H, rad, grow){
   pass(b, a, W, H, 1, W);   // sütunlar
 }
 function applyHeatMask(){
-  const cv = heatRenderer._container, base = activeBase();
-  if (!cv || !state.scan.length || !base || !base._tiles) return;
+  const cv = heatRenderer._container;
+  if (cv && state.scan.length && maskCanvas(cv) === false && maskWorks) { maskWorks = false; drawScan(); }
+  if (typeof dmMask === 'function') dmMask();
+}
+// Bir canvas katmanını haritanın deniz piksellerine kırpar. Karo okunamazsa (CORS) false döner.
+function maskCanvas(cv, keepLast = true){
+  const base = activeBase();
+  if (!cv || !base || !base._tiles) return null;
   const cr = cv.getBoundingClientRect(), W = Math.round(cr.width), H = Math.round(cr.height);
   if (!W || !H) return;
   const m = document.createElement('canvas'); m.width = W; m.height = H;
   const g = m.getContext('2d', {willReadFrequently:true});
+  let drawn = 0;
   for (const t of Object.values(base._tiles)) {
     const im = t.el; if (!t.loaded || !im.complete || !im.naturalWidth) continue;
     const r = im.getBoundingClientRect();
-    g.drawImage(im, r.left - cr.left, r.top - cr.top, r.width, r.height);
+    g.drawImage(im, r.left - cr.left, r.top - cr.top, r.width, r.height); drawn++;
   }
+  // Hiç karo yüklenmediyse (bağlantı yavaş/yok) maske boş çıkar ve katmanı tamamen gizlerdi: karolar gelince yeniden denenir
+  if (!drawn) return null;
   let d;
   // Karo okunamıyorsa (CORS) maske kapatılır ve kıyı hücreleri yine şerit şerit (kısmi) çizilir
-  try { d = g.getImageData(0, 0, W, H); } catch { if (maskWorks) { maskWorks = false; drawScan(); } return; }
+  try { d = g.getImageData(0, 0, W, H); } catch { return false; }
   const a = new Uint8Array(W * H), px = d.data;
   for (let i = 0, p = 0; i < a.length; i++, p += 4) a[i] = px[p + 3] > 0 && px[p + 2] > 150 && px[p + 2] - px[p] > 22 ? 1 : 0;
   morph(a, W, H, 2, true); morph(a, W, H, 2, false);
-  lastMask = {a, W, H};   // dokunmatikte "parmak boyalı denizde mi" kontrolü için
+  if (keepLast) lastMask = {a, W, H};   // dokunmatikte "parmak boyalı denizde mi" kontrolü için
   for (let i = 0, p = 0; i < a.length; i++, p += 4) { px[p] = px[p + 1] = px[p + 2] = 0; px[p + 3] = a[i] ? 255 : 0; }
   g.putImageData(d, 0, 0);
   const url = `url(${m.toDataURL()})`;
   Object.assign(cv.style, {maskImage:url, webkitMaskImage:url, maskSize:'100% 100%', webkitMaskSize:'100% 100%', maskRepeat:'no-repeat', webkitMaskRepeat:'no-repeat'});
+  return true;
 }
 heatRenderer.on('update', scheduleMask);
 [topo, street, osm, ocean.getLayers()[0]].forEach(l => l.on('load', scheduleMask));
@@ -4659,6 +5062,424 @@ function setTarget(v){
   if (!modal.hidden && $('wBody')) renderWeekly();
 }
 
+// =====================================================================
+//  CANLI VERİ HARİTASI (Windy benzeri): seçilen katmanın tüm meralardaki değeri + saat kaydırıcı (7 gün)
+// =====================================================================
+// Renkli alan meraların değerlerinden ters uzaklık ağırlıklı (IDW) hesaplanır; deniz katmanları haritanın deniz piksellerine
+// kırpılır (Tara ısı haritasıyla aynı maske). Değerler uygulamanın kendi hesabıdır (envAt): Copernicus, rüzgâr düzeltmesi ve
+// ECMWF karışımı burada da geçerlidir — Anlık sekmesinde görünen değerle aynı.
+const DM_LAYERS = [
+  {id:'wind', ad:'Rüzgâr', ic:'💨', u:'km/s', d:0, get:e => e.wind, dir:e => e.windDir == null ? null : e.windDir + 180,
+    stops:[[0,[98,113,183]],[10,[57,151,190]],[20,[63,175,120]],[30,[164,196,62]],[40,[240,200,40]],[55,[240,120,40]],[70,[215,48,60]],[90,[150,40,140]]]},
+  {id:'gust', ad:'Hamle', ic:'🌬️', u:'km/s', d:0, get:e => e.gust, dir:e => e.windDir == null ? null : e.windDir + 180,
+    stops:[[0,[98,113,183]],[10,[57,151,190]],[20,[63,175,120]],[30,[164,196,62]],[40,[240,200,40]],[55,[240,120,40]],[70,[215,48,60]],[90,[150,40,140]]]},
+  {id:'wave', ad:'Dalga', ic:'🌊', sea:true, u:'m', d:1, get:e => e.wave, dir:e => e.waveDir == null ? null : e.waveDir + 180,
+    stops:[[0,[60,110,190]],[0.3,[50,160,200]],[0.7,[70,190,120]],[1.2,[220,210,60]],[2,[245,140,40]],[3,[215,48,60]],[4.5,[150,40,140]]]},
+  {id:'sst', ad:'Su sıcaklığı', ic:'🌡️', sea:true, u:'°C', d:1, get:e => e.sst,
+    stops:[[6,[70,60,170]],[10,[50,120,210]],[13,[50,180,200]],[16,[90,200,110]],[19,[230,210,60]],[23,[245,140,40]],[27,[215,48,60]]]},
+  {id:'cur', ad:'Akıntı', ic:'〰️', sea:true, u:'km/s', d:1, get:e => e.cur, dir:e => e.curDir,
+    stops:[[0,[60,90,170]],[0.3,[50,150,200]],[0.8,[70,190,120]],[1.5,[220,210,60]],[2.5,[245,140,40]],[4,[215,48,60]]]},
+  {id:'temp', ad:'Hava sıcaklığı', ic:'🌤️', u:'°C', d:0, get:e => e.temp,
+    stops:[[-5,[120,60,170]],[0,[70,110,210]],[8,[50,180,200]],[14,[90,200,110]],[20,[230,210,60]],[26,[245,140,40]],[33,[215,48,60]]]},
+  {id:'rain', ad:'Yağış', ic:'☔', u:'mm', d:1, min:0.1, get:e => e.precip,
+    stops:[[0.1,[150,190,240]],[0.5,[80,140,230]],[1.5,[60,180,120]],[3,[230,210,60]],[6,[245,120,40]],[10,[215,48,60]]]},
+  {id:'cloud', ad:'Bulut', ic:'☁️', u:'%', d:0, min:5, get:e => e.cloud, stops:[[5,[95,115,135]],[50,[165,180,195]],[100,[235,240,245]]]},
+  {id:'press', ad:'Basınç', ic:'⏲️', u:'hPa', d:0, get:e => e.pressure,
+    stops:[[990,[150,40,140]],[1000,[70,110,210]],[1008,[50,180,200]],[1013,[90,200,110]],[1018,[230,210,60]],[1024,[245,140,40]],[1032,[215,48,60]]]},
+  {id:'sal', ad:'Tuzluluk', ic:'🧂', sea:true, u:'‰', d:1, get:e => e.sal,
+    stops:[[15,[50,120,210]],[18,[50,180,200]],[22,[90,200,110]],[27,[230,210,60]],[33,[245,140,40]],[39,[215,48,60]]]},
+  {id:'score', ad:'Av puanı', ic:'🎣', sea:true, u:'', d:0, score:true, get:(e, H) => H ? H.score : null, stops:HEAT_STOPS},
+];
+const DM = {on:false, layer:'wind', t:0, times:[], S:new Map(), cache:new Map(), at:0, loading:false, play:null, field:null, raf:0};
+const dmLayer = L.layerGroup();
+const dmColor = (L_, v) => {
+  const st = L_.stops;
+  if (v <= st[0][0]) return st[0][1];
+  for (let k = 1; k < st.length; k++) if (v <= st[k][0]) {
+    const t = (v - st[k - 1][0]) / (st[k][0] - st[k - 1][0]);
+    return st[k - 1][1].map((c, j) => Math.round(c + (st[k][1][j] - c) * t));
+  }
+  return st[st.length - 1][1];
+};
+const dmLyr = () => DM_LAYERS.find(l => l.id === DM.layer);
+// Haritanın noktaları: tüm deniz meraları + tatlı sudan ~33 km'de bir nokta (popüler olan seçilir). Tatlı su listesi
+// OpenStreetMap'ten 550 göl/baraj/dere; hepsi çekilse bir açılış Open-Meteo'nun günlük kotasından ~700 sorgu yerdi.
+let DM_PTS = null;
+function dmPoints(){
+  if (DM_PTS) return DM_PTS;
+  const cell = new Map();
+  for (const s of SPOTS.filter(x => x.w !== 'deniz')) {
+    const k = Math.round(s.lat / 0.3) + ',' + Math.round(s.lng / 0.4), c = cell.get(k);
+    if (!c || gCount(s) > gCount(c)) cell.set(k, s);
+  }
+  return (DM_PTS = [...SPOTS.filter(x => x.w === 'deniz'), ...cell.values()]);
+}
+// Seriler 25'erli çekilir (Open-Meteo dakika sınırına takılmadan; deniz meraları önce)
+async function dmLoad(){
+  if (DM.loading) return;
+  if (Date.now() - DM.at > SERIES_TTL) { DM.S.clear(); DM.cache.clear(); DM.at = Date.now(); }
+  const need = dmPoints().filter(s => !DM.S.has(s.n));
+  if (!need.length) return dmDraw();
+  DM.loading = true;
+  try {
+    for (let i = 0; i < need.length && DM.on; i += 25) {
+      dmStatus(`Veri yükleniyor… ${Math.min(i + 25, need.length)}/${need.length} nokta`);
+      let got = null;
+      for (let t = 0; t < 4 && !got; t++) {
+        try { got = await fetchSeries(need.slice(i, i + 25)); }
+        catch (e) { if (e.daily || t === 3) throw e; dmStatus('Hava servisi kısa süreli sınırda, bekleniyor…'); await sleep(15000); }
+      }
+      got.forEach(S => DM.S.set(S.p.n, S));
+      if (!DM.times.length || i === 0) dmTimes();
+      dmDraw();
+      if (i + 25 < need.length) await sleep(1500);
+    }
+    dmStatus('');
+  } catch (e) { dmStatus('⚠️ ' + e.message); }
+  finally { DM.loading = false; }
+}
+// Saat ekseni: şu andan 7 gün sonuna (ilk serinin saatleri; tüm seriler aynı saat ızgarasında)
+function dmTimes(){
+  const S = DM.S.values().next().value; if (!S) return;
+  const prev = DM.times[DM.t];
+  DM.times = S.F.hourly.time.slice(S.nowIdx);
+  DM.t = Math.max(0, prev ? DM.times.indexOf(prev) : 0);
+  const r = $('dmRange'); if (r) { r.max = DM.times.length - 1; r.value = DM.t; }
+  dmDays();
+}
+function dmAt(S, time, score){
+  const k = S.p.n + '|' + time;
+  let c = DM.cache.get(k);
+  if (!c) {
+    S._ti ||= new Map(S.F.hourly.time.map((t, i) => [t, i]));
+    const i = S._ti.get(time); if (i == null) return null;
+    c = {i, e: envAt(S, i)}; DM.cache.set(k, c);
+  }
+  if (score && !c.H) c.H = hourScore(S, c.i);
+  return c;
+}
+function dmSpots(L_){
+  return [...DM.S.values()].filter(S => L_.sea ? S.p.w === 'deniz' : true);
+}
+function dmDraw(){
+  cancelAnimationFrame(DM.raf);
+  DM.raf = requestAnimationFrame(dmDrawNow);
+}
+// Akıcı çizim (Windy gibi): renkli alan ve akan parçacıklar haritanın kendi panosundaki iki kalıcı tuvalde. Saat değişince
+// alan yeniden kurulmaz; ızgara değerleri eski saatten yenisine ~0,35 sn'de yumuşakça geçer, etiketler yerinde güncellenir.
+// (Eskiden her saat adımında resim baştan üretilip yükleniyor, maske bir an sonra geliyordu: oynatırken ekran yanıp sönüyordu.)
+// Izgara geometrisi (hangi hücre hangi meralardan, hangi ağırlıkla) yalnız harita kaydırılınca ya da katman değişince hesaplanır.
+const DMV = {pane:null, fc:null, pc:null, geo:null, grid:null, anim:0, parts:null, praf:0, marks:new Map(), key:'', maskKey:'',
+  reduce: matchMedia('(prefers-reduced-motion: reduce)').matches};
+function dmCanvases(){
+  if (DMV.pane) return;
+  DMV.pane = map.createPane('dmPane'); DMV.pane.style.zIndex = 390; DMV.pane.style.pointerEvents = 'none';
+  DMV.fc = L.DomUtil.create('canvas', 'dmfield', DMV.pane);
+  DMV.pc = L.DomUtil.create('canvas', 'dmparts', DMV.pane);
+  map.on('zoomstart', () => { DMV.pane.style.opacity = 0; });
+  map.on('zoomend', () => { DMV.pane.style.opacity = ''; });
+}
+function dmPts(L_, time){
+  const pts = [];
+  for (const S of dmSpots(L_)) {
+    const c = dmAt(S, time, L_.score); if (!c) continue;
+    const v = L_.get(c.e, c.H);
+    if (v == null || Number.isNaN(v)) continue;
+    pts.push({S, v, dir: L_.dir ? L_.dir(c.e) : null, lat:S.p.lat, lng:S.p.lng});
+  }
+  return pts;
+}
+// Geometri: ekranın ~10–12 px'lik köşe noktaları; her nokta için en yakın 6 mera ve IDW ağırlıkları (deniz 35 km, hava 70 km)
+function dmGeo(L_, pts){
+  const sz = map.getSize(), cell = isMobile() ? 10 : 12, cols = Math.ceil(sz.x / cell) + 1, rows = Math.ceil(sz.y / cell) + 1;
+  const R = L_.sea ? 35 : 70, cosL = Math.cos(map.getCenter().lat * Math.PI / 180);
+  const idx = new Int32Array(cols * rows * 6).fill(-1), w = new Float32Array(cols * rows * 6), fade = new Float32Array(cols * rows);
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const ll = map.containerPointToLatLng([c * cell, r * cell]), best = [];
+    for (let k = 0; k < pts.length; k++) {
+      const p = pts[k], d = Math.hypot((p.lat - ll.lat) * 111.2, (p.lng - ll.lng) * 111.2 * cosL);
+      if (d > R) continue;
+      if (best.length < 6) { best.push([d, k]); best.sort((a, b) => a[0] - b[0]); }
+      else if (d < best[5][0]) { best[5] = [d, k]; best.sort((a, b) => a[0] - b[0]); }
+    }
+    const o = r * cols + c;
+    if (!best.length) continue;
+    let sw = 0; for (const [d] of best) sw += 1 / Math.max(0.3, d) ** 2;
+    best.forEach(([d, k], j) => { idx[o * 6 + j] = k; w[o * 6 + j] = (1 / Math.max(0.3, d) ** 2) / sw; });
+    fade[o] = Math.max(0, Math.min(1, (R - best[0][0]) / (R * 0.4)));   // menzil kenarında sönümlenir
+  }
+  return {cols, rows, cell, idx, w, fade, names: pts.map(p => p.S.p.n)};
+}
+// Bir saatin ızgarası: değer + (yönlü katmanlarda) hareket bileşenleri (ekran ekseninde, x doğu, y güney)
+function dmGrid(geo, pts){
+  const N = geo.cols * geo.rows, val = new Float32Array(N).fill(NaN), u = new Float32Array(N), v = new Float32Array(N);
+  const byName = new Map(pts.map(p => [p.S.p.n, p])), P = geo.names.map(n => byName.get(n));
+  for (let o = 0; o < N; o++) {
+    let sv = 0, su = 0, sy = 0, sw = 0;
+    for (let j = 0; j < 6; j++) {
+      const k = geo.idx[o * 6 + j]; if (k < 0) break;
+      const p = P[k]; if (!p) continue;
+      const ww = geo.w[o * 6 + j]; sv += ww * p.v; sw += ww;
+      if (p.dir != null) { const a = p.dir * Math.PI / 180; su += ww * Math.sin(a) * p.v; sy -= ww * Math.cos(a) * p.v; }
+    }
+    if (sw > 0) { val[o] = sv / sw; u[o] = su / sw; v[o] = sy / sw; }
+  }
+  return {val, u, v};
+}
+function dmPaint(grid){
+  const geo = DMV.geo, L_ = dmLyr();
+  const off = DMV.off || (DMV.off = document.createElement('canvas'));
+  off.width = geo.cols; off.height = geo.rows;
+  const g = off.getContext('2d'), img = g.createImageData(geo.cols, geo.rows), A = L_.sea ? 190 : 140;
+  for (let o = 0; o < geo.cols * geo.rows; o++) {
+    const v = grid.val[o]; if (Number.isNaN(v) || (L_.min != null && v < L_.min)) continue;
+    const [r, gg, b] = dmColor(L_, v), q = o * 4;
+    img.data[q] = r; img.data[q + 1] = gg; img.data[q + 2] = b; img.data[q + 3] = Math.round(A * geo.fade[o]);
+  }
+  g.putImageData(img, 0, 0);
+  const fc = DMV.fc, ctx = fc.getContext('2d');
+  ctx.clearRect(0, 0, fc.width, fc.height);
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  // Izgara noktaları hücre köşeleri: yarım hücre kaydırılıp büyütülünce renkler kesintisiz geçer (eskiden 14 px'lik kareler)
+  ctx.drawImage(off, 0, 0, geo.cols, geo.rows, -geo.cell / 2, -geo.cell / 2, geo.cols * geo.cell, geo.rows * geo.cell);
+}
+function dmLerp(a, b, k){
+  const N = a.val.length, val = new Float32Array(N), u = new Float32Array(N), v = new Float32Array(N);
+  for (let o = 0; o < N; o++) {
+    const x = a.val[o], y = b.val[o];
+    val[o] = Number.isNaN(x) ? y : Number.isNaN(y) ? x : x + (y - x) * k;
+    u[o] = a.u[o] + (b.u[o] - a.u[o]) * k; v[o] = a.v[o] + (b.v[o] - a.v[o]) * k;
+  }
+  return {val, u, v};
+}
+function dmTween(to){
+  cancelAnimationFrame(DMV.anim);
+  const from = DMV.grid;
+  if (!from || from.val.length !== to.val.length || DMV.reduce) { DMV.grid = to; dmPaint(to); return; }
+  const t0 = performance.now(), D = DM.play ? 380 : 260;
+  const step = now => {
+    const k = Math.min(1, (now - t0) / D), e = k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;   // yumuşak başla-bitir
+    DMV.grid = k >= 1 ? to : dmLerp(from, to, e); dmPaint(DMV.grid);
+    if (k < 1) DMV.anim = requestAnimationFrame(step);
+  };
+  DMV.anim = requestAnimationFrame(step);
+}
+// Akan parçacıklar (rüzgâr, hamle, dalga, akıntı): alanın hareket bileşenleriyle sürüklenir, iz bırakarak söner
+function dmParticles(){
+  cancelAnimationFrame(DMV.praf);
+  const pc = DMV.pc, ctx = pc.getContext('2d'), L_ = dmLyr();
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, pc.width, pc.height);
+  if (!L_.dir || DMV.reduce || !DMV.geo) return;
+  const W = map.getSize().x, H = map.getSize().y, dpr = pc.width / W, geo = DMV.geo;
+  const n = Math.round((isMobile() ? 380 : 1000) * Math.min(1.4, W * H / (1200 * 700) + 0.4));
+  const unit = {wind:22, gust:30, cur:0.9, wave:1.2}[L_.id] || 20;
+  const sample = (x, y) => {
+    const cx = x / geo.cell, cy = y / geo.cell, c0 = Math.floor(cx), r0 = Math.floor(cy);
+    if (c0 < 0 || r0 < 0 || c0 >= geo.cols - 1 || r0 >= geo.rows - 1) return null;
+    const G = DMV.grid, o = r0 * geo.cols + c0;
+    if (!G || Number.isNaN(G.val[o]) || geo.fade[o] < 0.3) return null;
+    const fx = cx - c0, fy = cy - r0;
+    const bl = a => a[o] * (1 - fx) * (1 - fy) + a[o + 1] * fx * (1 - fy) + a[o + geo.cols] * (1 - fx) * fy + a[o + geo.cols + 1] * fx * fy;
+    return [bl(G.u), bl(G.v)];
+  };
+  const spawn = p => { p.x = Math.random() * W; p.y = Math.random() * H; p.age = Math.floor(Math.random() * 80); return p; };
+  DMV.parts = Array.from({length:n}, () => spawn({}));
+  let last = 0;
+  const frame = now => {
+    DMV.praf = requestAnimationFrame(frame);
+    if (!DM.on || document.hidden || now - last < 30) return;   // ~30 kare/sn yeter, pil dostu
+    last = now;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.globalCompositeOperation = 'destination-in'; ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = isMobile() ? 1.4 : 1.1; ctx.lineCap = 'round';
+    ctx.beginPath();
+    const k = 1.6 / unit;
+    for (const p of DMV.parts) {
+      const s = p.age++ > 90 ? null : sample(p.x, p.y);
+      if (!s) { spawn(p); p.age = 0; continue; }
+      const nx = p.x + s[0] * k, ny = p.y + s[1] * k;
+      ctx.moveTo(p.x, p.y); ctx.lineTo(nx, ny); p.x = nx; p.y = ny;
+    }
+    ctx.stroke();
+  };
+  DMV.praf = requestAnimationFrame(frame);
+}
+// Değer etiketleri: üst üste binmeyecek kadarı (popüler meralar önce); saat değişince yalnız yazı, renk ve ok güncellenir
+function dmLabels(L_, pts, rebuild){
+  const sz = map.getSize();
+  if (rebuild) {
+    dmLayer.clearLayers(); DMV.marks.clear();
+    const taken = [], lab = [...pts].sort((a, b) => gCount(b.S.p) - gCount(a.S.p));
+    for (const p of lab) {
+      const cp = map.latLngToContainerPoint([p.lat, p.lng]);
+      if (cp.x < -20 || cp.y < -20 || cp.x > sz.x + 20 || cp.y > sz.y + 20) continue;
+      if (taken.some(q => Math.abs(q.x - cp.x) < 50 && Math.abs(q.y - cp.y) < 22)) continue;
+      taken.push(cp);
+      const S = p.S;
+      const m = L.marker([p.lat, p.lng], {icon: L.divIcon({className:'', iconSize:null, html:'<div class="dmv"><i>↑</i><b></b></div>'})})
+        .on('click', () => dmPopup(S, DM.times[DM.t])).addTo(dmLayer);
+      DMV.marks.set(S.p.n, m);
+    }
+  }
+  const byName = new Map(pts.map(p => [p.S.p.n, p]));
+  for (const [n, m] of DMV.marks) {
+    const el = m.getElement() && m.getElement().firstChild, p = byName.get(n); if (!el) continue;
+    if (!p || (L_.min != null && p.v < L_.min)) { el.style.display = 'none'; continue; }
+    el.style.display = ''; el.style.borderColor = `rgb(${dmColor(L_, p.v)})`;
+    const i = el.firstChild;
+    i.style.display = p.dir != null ? '' : 'none';
+    if (p.dir != null) {   // en kısa yoldan döner (359° → 1° tam tur atmasın)
+      const prev = i.dataset.r != null ? +i.dataset.r : p.dir, d = ((p.dir - prev) % 360 + 540) % 360 - 180, r = prev + d;
+      i.dataset.r = r; i.style.transform = `rotate(${Math.round(r)}deg)`;
+    }
+    el.lastChild.innerHTML = `${fmt(p.v, L_.d)}${L_.u && L_.u !== 'km/s' ? `<small style="font-weight:400;opacity:.8">${L_.u === '°C' ? '°' : L_.u === '%' ? '%' : ''}</small>` : ''}`;
+  }
+}
+function dmDrawNow(){
+  if (!DM.on) return;
+  dmCanvases();
+  const L_ = dmLyr(), time = DM.times[DM.t];
+  dmLegend(L_);
+  const tl = $('dmTime'); if (tl) tl.textContent = time ? `${dayLabel(time)} ${hh(time)}` : '–';
+  const dsel = $('dmDaySel'); if (dsel && dsel.options.length) dsel.value = DM.t;
+  const dd = $('dmDays');
+  if (dd) { if (!dd.children.length) dmDays(); else dd.querySelectorAll('button').forEach(b => b.classList.toggle('on', !!time && time.startsWith(b.dataset.d))); }
+  if (!time) return;
+  const pts = dmPts(L_, time);
+  if (!pts.length) { if (!DM.loading) dmStatus(L_.sea ? 'Bu katmanda gösterilecek deniz verisi yok.' : 'Veri yok.'); return; }
+  const sz = map.getSize();
+  const key = [L_.id, pts.length, sz.x, sz.y, map.getBounds().toBBoxString(), map.getZoom()].join('|');
+  const rebuild = key !== DMV.key;
+  if (rebuild) {
+    DMV.key = key;
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    for (const c of [DMV.fc, DMV.pc]) {
+      L.DomUtil.setPosition(c, map.containerPointToLayerPoint([0, 0]));
+      c.style.width = sz.x + 'px'; c.style.height = sz.y + 'px';
+    }
+    DMV.fc.width = sz.x; DMV.fc.height = sz.y;
+    DMV.pc.width = Math.round(sz.x * dpr); DMV.pc.height = Math.round(sz.y * dpr);
+    DMV.geo = dmGeo(L_, pts); DMV.grid = null;
+  }
+  dmTween(dmGrid(DMV.geo, pts));
+  if (rebuild) {
+    dmParticles();
+    DMV.maskKey = ''; setTimeout(dmMask, 60);
+  }
+  dmLabels(L_, pts, rebuild);
+  DM.field = DMV.fc;
+}
+function dmMask(){
+  if (!DM.on || !DMV.fc) return;
+  for (const el of [DMV.fc, DMV.pc]) {
+    if (dmLyr().sea) { if (maskCanvas(el, false) === null) { setTimeout(dmMask, 500); return; } }   // karolar gelmediyse tekrar dene
+    else ['maskImage', 'webkitMaskImage'].forEach(k => el.style[k] = '');
+  }
+}
+function dmClear(){
+  cancelAnimationFrame(DMV.anim); cancelAnimationFrame(DMV.praf);
+  for (const c of [DMV.fc, DMV.pc]) if (c) { c.getContext('2d').setTransform(1, 0, 0, 1, 0, 0); c.getContext('2d').clearRect(0, 0, c.width, c.height); }
+  DMV.key = ''; DMV.grid = null; DMV.marks.clear();
+}
+// Meranın o saatteki tüm verileri (Windy'deki nokta ayrıntısı gibi)
+function dmPopup(S, time){
+  const c = dmAt(S, time, true); if (!c) return;
+  const e = c.e, sea = S.p.w === 'deniz', top = c.H.list.slice(0, 3).map(r => `${r.fish.ad} ${r.adj}`).join(', ');
+  const row = (k, v) => v == null || v === '' ? '' : `<tr><td>${k}</td><td><b>${v}</b></td></tr>`;
+  const html = `<div class="dmpop"><b>${S.p.n}</b><br><span style="color:#5b6b75">${dayLabel(time)} ${hh(time)} · ${W_NAMES[S.p.w]}</span>
+    <table>${row('Hava', `${wIcon(e.code, e.isDay)} ${Math.round(e.temp)}°C · ${WCODES[e.code] || ''}`)}
+      ${row('Rüzgâr', `${Math.round(e.wind)} km/s ${e.windDir != null ? dirName(e.windDir) : ''} · hamle ${Math.round(e.gust)}`)}
+      ${row('Yağış', e.precip ? `${fmt(e.precip, 1)} mm` : 'yok')}${row('Bulut', `%${e.cloud}`)}${row('Basınç', `${Math.round(e.pressure)} hPa`)}
+      ${row('Su', `${fmt(e.wt, 1)}°C${sea ? '' : ' (tahmini)'}`)}
+      ${sea ? row('Dalga', e.wave != null ? `${fmt(e.wave, 1)} m ${e.waveDir != null ? dirName(e.waveDir) : ''}${e.wavePer ? ' · ' + fmt(e.wavePer, 1) + ' sn' : ''}` : '–') : ''}
+      ${sea ? row('Akıntı', e.cur != null ? `${fmt(e.cur, 1)} km/s ${e.curDir != null ? dirName(e.curDir) + ' yönüne' : ''}` : '–') : ''}
+      ${sea && e.sal != null ? row('Tuzluluk', `${fmt(e.sal, 1)} ‰`) : ''}
+      ${row('Su durumu', e.murky ? 'Bulanık' : 'Berrak')}
+      ${row('Av puanı', `<span style="color:${scoreColor(c.H.score)}">${c.H.score}</span>${top ? ' · ' + top : ''}`)}</table>
+    <button id="dmGo">Ayrıntı ve 7 gün →</button></div>`;
+  const pop = L.popup({maxWidth:300}).setLatLng([S.p.lat, S.p.lng]).setContent(html).openOn(map);
+  setTimeout(() => { const b = $('dmGo'); if (b) b.onclick = () => { map.closePopup(pop); openSpot(S.p, time); }; }, 0);
+}
+// Gün düğmeleri: o günün aynı saatine atlar (yoksa günün ilk saatine)
+function dmDays(){
+  const el = $('dmDays'); if (!el || !DM.times.length) return;
+  const cur = DM.times[DM.t] || '', days = [...new Set(DM.times.map(t => t.slice(0, 10)))];
+  const ds = $('dmDaySel');
+  if (ds) ds.innerHTML = DM.times.map((t, k) => `<option value="${k}"${k === DM.t ? ' selected' : ''}>${dayLabel(t)} ${hh(t)}</option>`).join('');
+  el.innerHTML = days.map(d => `<button data-d="${d}" class="${cur.startsWith(d) ? 'on' : ''}">${dayLabel(d + 'T00')}</button>`).join('');
+  el.querySelectorAll('button').forEach(b => b.onclick = () => {
+    const d = b.dataset.d, k = DM.times.indexOf(d + cur.slice(10));
+    DM.t = k >= 0 ? k : DM.times.findIndex(t => t.startsWith(d)); $('dmRange').value = DM.t; dmDraw();
+  });
+}
+function dmStatus(t){ const el = $('dmSt'); if (el) el.textContent = t; }
+function dmLegend(L_){
+  const el = $('dmLg'); if (!el) return;
+  const st = L_.stops, lo = st[0][0], hi = st[st.length - 1][0];
+  const grad = st.map(([v, c]) => `rgb(${c}) ${((v - lo) / (hi - lo) * 100).toFixed(1)}%`).join(',');
+  const ticks = [st[0], st[Math.floor(st.length / 2)], st[st.length - 1]].map(x => fmt(x[0], x[0] % 1 ? 1 : 0));
+  el.innerHTML = `<span>${L_.ic}</span><div style="flex:1"><div class="bar" style="background:linear-gradient(90deg,${grad})"></div>
+    <div class="tk"><span>${ticks[0]}</span><span>${ticks[1]}</span><span>${ticks[2]} ${L_.u}</span></div></div>`;
+}
+// Telefonda üstte (filtre çubuğunun altında): altta, mera açılınca yükselen panelin altında kalıyordu
+const dmCtl = L.control({position: isMobile() ? 'topleft' : 'bottomleft'});
+dmCtl.onAdd = () => {
+  const d = L.DomUtil.create('div', '');
+  L.DomEvent.disableClickPropagation(d); L.DomEvent.disableScrollPropagation(d);
+  return d;
+};
+dmCtl.addTo(map);
+function dmRender(){
+  const d = dmCtl.getContainer();
+  if (!DM.on) {
+    d.innerHTML = `<button class="dmfab" id="dmFab" title="Rüzgâr, dalga, su sıcaklığı, akıntı… tüm meralarda, saat saat">🌐 Canlı veri</button>`;
+    $('dmFab').onclick = ev => { L.DomEvent.stop(ev); dmOpen(); };
+    return;
+  }
+  if (DM.min === undefined) DM.min = lsGet('dmMin', false);
+  d.innerHTML = `<div class="dmctl${DM.min ? ' min' : ''}">
+    <div class="lyr">${DM_LAYERS.map(l => `<button data-l="${l.id}" class="${l.id === DM.layer ? 'on' : ''}">${l.ic} ${l.ad}</button>`).join('')}</div>
+    <div class="dys" id="dmDays"></div>
+    <div class="tm"><button id="dmPlay" title="Oynat">${DM.play ? '⏸' : '▶'}</button>
+      <button id="dmPrev" title="Önceki saat" aria-label="Önceki saat">‹</button>
+      <input id="dmRange" type="range" min="0" max="${Math.max(0, DM.times.length - 1)}" value="${DM.t}" aria-label="Saat">
+      <button id="dmNext" title="Sonraki saat" aria-label="Sonraki saat">›</button>
+      <span class="tl" id="dmTime">–</span><select class="dsel" id="dmDaySel" aria-label="Gün ve saat"></select>
+      <button class="mini" id="dmMin" title="Küçült/büyüt">${DM.min ? '▾' : '–'}</button><button id="dmX" title="Kapat">✕</button></div>
+    <div class="lg" id="dmLg"></div><div class="st" id="dmSt"></div></div>`;
+  d.querySelectorAll('.lyr button').forEach(b => b.onclick = () => {
+    DM.layer = b.dataset.l; d.querySelectorAll('.lyr button').forEach(x => x.classList.toggle('on', x === b)); dmDraw();
+  });
+  $('dmRange').oninput = ev => { DM.t = +ev.target.value; dmDraw(); };
+  const step = n => { DM.t = Math.max(0, Math.min(DM.times.length - 1, DM.t + n)); $('dmRange').value = DM.t; dmDraw(); };
+  $('dmPrev').onclick = () => step(-1); $('dmNext').onclick = () => step(1);
+  dmDays();
+  $('dmPlay').onclick = () => {
+    if (DM.play) { clearInterval(DM.play); DM.play = null; }
+    else DM.play = setInterval(() => { DM.t = (DM.t + 1) % Math.max(1, DM.times.length); $('dmRange').value = DM.t; dmDraw(); }, 450);
+    $('dmPlay').textContent = DM.play ? '⏸' : '▶';
+  };
+  $('dmX').onclick = dmClose;
+  $('dmMin').onclick = () => { DM.min = !DM.min; lsSet('dmMin', DM.min); d.querySelector('.dmctl').classList.toggle('min', DM.min); $('dmMin').textContent = DM.min ? '▾' : '–'; };
+  $('dmDaySel').onchange = ev => { DM.t = +ev.target.value; $('dmRange').value = DM.t; dmDraw(); };
+}
+function dmOpen(){
+  closeBars();
+  DM.on = true; document.body.classList.add('dm-on');
+  map.removeLayer(spotLayer); map.removeLayer(labelLayer); dmLayer.addTo(map);
+  dmRender(); dmTimes(); dmDraw(); dmLoad();
+}
+function dmClose(){
+  DM.on = false; document.body.classList.remove('dm-on');
+  if (DM.play) { clearInterval(DM.play); DM.play = null; }
+  dmLayer.clearLayers(); map.removeLayer(dmLayer); DM.field = null; map.closePopup(); dmClear();
+  spotLayer.addTo(map); labelLayer.addTo(map); updateLabels();
+  dmRender();
+}
+dmRender();
+map.on('moveend', () => { if (DM.on) dmDraw(); });
+
 // ---------- Tam ekran ----------
 function setFs(on){
   document.body.classList.toggle('fs', on);
@@ -4695,10 +5516,11 @@ document.addEventListener('click', ev => {
     goSpot(SPOTS.find(x => x.n === se.dataset.spot));
   }
 }, true);
-$('mclose').onclick = closeModal;
+$('mclose').onclick = () => closeModal();
 modal.addEventListener('click', ev => { if (ev.target === modal) closeModal(); });
 addEventListener('keydown', ev => { if (ev.key === 'Escape') closeModal(); });
 $('guideBtn').onclick = openGuide;
+$('dataBtn').onclick = () => { closeBars(); DM.on ? dmClose() : dmOpen(); };
 $('targetSel').innerHTML = targetOptions();
 $('targetSel').onchange = ev => setTarget(ev.target.value);
 $('bellBtn').onclick = () => { closeBars(); openWeekly(); };
